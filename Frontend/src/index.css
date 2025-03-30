@@ -981,3 +981,26 @@ button:focus, a:focus, input:focus {
   100% { transform: rotate(30deg) translateX(100%); }
 } 
 
+
+/* Cart icon styling */
+.cart-icon {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+  padding: 0.6rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  animation: buttonPop 0.5s ease-out forwards;
+  animation-delay: 0.3s;
+  opacity: 0;
+}
+
+.cart-icon:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}

@@ -7,6 +7,12 @@ function Cart() {
     const [error, setError] = useState('');
     const [cartCourses, setCartCourses] = useState([]);
     const [searchCourse, setSearchCourse] = useState('');
+    const [showCart, setShowCart] = useState(false);
+
+    // Function to toggle the cart visibility
+    const toggleCart = () => {
+        setShowCart(!showCart);
+    };
 
     // Fetch products from the backend
     const fetchProducts = async () => {
@@ -53,6 +59,9 @@ function Cart() {
         } else {
             setCartCourses([...cartCourses, { product: GFGcourse, quantity: 1 }]);
         }
+        
+        // Show the cart when a product is added
+        setShowCart(true);
     };
 
     // Delete a course from the cart
@@ -88,7 +97,8 @@ function Cart() {
         <div className="App">
             <SearchComponent 
                 searchCourse={searchCourse} 
-                courseSearchUserFunction={courseSearchUserFunction} 
+                courseSearchUserFunction={courseSearchUserFunction}
+                toggleCart={toggleCart}
             />
             <main className="App-main">
                 <ShowCourseComponent
@@ -103,6 +113,7 @@ function Cart() {
                     totalAmountCalculationFunction={totalAmountCalculationFunction}
                     setCartCourses={setCartCourses}
                     clearCart={clearCart}
+                    showCart={showCart}
                 />
             </main>
         </div>

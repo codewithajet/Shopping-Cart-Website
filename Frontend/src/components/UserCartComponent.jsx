@@ -7,9 +7,10 @@ function UserCartComponent({
     totalAmountCalculationFunction,
     setCartCourses,
     clearCart,
+    showCart,
 }) {
     return (
-        <div className={`cart ${cartCourses.length > 0 ? 'active' : ''}`}>
+        <div className={`cart ${cartCourses.length > 0 && showCart ? 'active' : ''}`}>
             <h2>My Cart</h2>
             {cartCourses.length === 0 ? (
                 <p className="empty-cart">Your cart is empty.</p>
