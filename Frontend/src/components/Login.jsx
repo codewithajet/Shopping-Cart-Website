@@ -53,51 +53,82 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">Welcome Back</h2>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md transform transition-all hover:scale-[1.01]" style={{ 
+        background: 'var(--card-bg)',
+        boxShadow: 'var(--shadow-md)',
+        transition: 'var(--transition)'
+      }}>
+        <h2 className="text-3xl font-bold text-center mb-8" style={{ 
+          color: 'var(--primary)',
+          fontFamily: 'var(--font-secondary)'
+        }}>Welcome Back</h2>
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="px-4 py-3 rounded-lg mb-4" style={{ 
+            background: 'rgba(244, 67, 54, 0.1)',
+            borderLeft: '4px solid var(--danger)',
+            color: 'var(--danger)'
+          }}>
             {error}
           </div>
         )}
         <div className="space-y-6">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          <div className="transform transition-all duration-300">
+            <label htmlFor="email" className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-dark)' }}>
               Email
             </label>
             <input
               type="email"
               id="email"
               placeholder="Enter your email"
-              className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-4 py-3 rounded-lg"
+              style={{
+                border: '1px solid var(--border-light)',
+                transition: 'var(--transition)',
+                color: 'var(--text-dark)'
+              }}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          <div className="transform transition-all duration-300">
+            <label htmlFor="password" className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-dark)' }}>
               Password
             </label>
             <input
               type="password"
               id="password"
               placeholder="Enter your password"
-              className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-4 py-3 rounded-lg"
+              style={{
+                border: '1px solid var(--border-light)',
+                transition: 'var(--transition)',
+                color: 'var(--text-dark)'
+              }}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
           <button
             onClick={handleLogin}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="w-full py-3 px-4 rounded-lg font-medium"
+            style={{
+              background: 'var(--primary)',
+              color: 'white',
+              transition: 'var(--transition)',
+              boxShadow: 'var(--shadow-sm)'
+            }}
           >
             Login
           </button>
         </div>
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <p className="mt-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>
           Don't have an account?{' '}
-          <a href="/register" className="text-blue-600 hover:text-blue-500">
+          <a href="/register" style={{ 
+            color: 'var(--primary)',
+            fontWeight: '500',
+            transition: 'var(--transition)'
+          }}>
             Sign up
           </a>
         </p>

@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import SearchComponent from '../components/SearchComponent';
 import ShowCourseComponent from '../components/ShowCourseComponent';
 import UserCartComponent from '../components/UserCartComponent';
-import { Link } from 'react-router-dom';
-
 function Cart() {
     const [products, setProducts] = useState([]);
     const [error, setError] = useState('');
@@ -88,7 +86,6 @@ function Cart() {
 
     return (
         <div className="App">
-            <Link to="/login">Login</Link>
             <SearchComponent 
                 searchCourse={searchCourse} 
                 courseSearchUserFunction={courseSearchUserFunction} 

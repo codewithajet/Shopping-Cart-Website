@@ -168,100 +168,117 @@ const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
     };
 
     return (
-        <div className="p-6 bg-gray-100 min-h-screen">
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Checkout</h1>
+        <div className="p-6" style={{ backgroundColor: 'var(--background)', minHeight: '100vh' }}>
+            <h1 className="text-3xl font-bold mb-6" style={{ color: 'var(--text-dark)' }}>Checkout</h1>
 
             {orderPlaced ? (
-                <div className="bg-white p-6 rounded-lg shadow-md text-center">
-                    <h2 className="text-2xl font-semibold mb-4">Thank you for your order!</h2>
-                    <p className="text-gray-600 mb-4">Your order has been placed successfully.</p>
+                <div style={{ backgroundColor: 'var(--card-bg)', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: 'var(--shadow-md)' }} className="text-center">
+                    <h2 className="text-2xl font-semibold mb-4" style={{ color: 'var(--text-dark)' }}>Thank you for your order!</h2>
+                    <p className="mb-4" style={{ color: 'var(--text-light)' }}>Your order has been placed successfully.</p>
                     <Link
                         to="/"
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style={{ 
+                            backgroundColor: 'var(--primary)',
+                            color: 'white',
+                            padding: '0.5rem 1rem',
+                            borderRadius: '0.5rem',
+                            transition: 'var(--transition)'
+                        }}
+                        className="hover:bg-opacity-90 focus:outline-none focus:ring-2"
                     >
                         Continue Shopping
                     </Link>
                 </div>
             ) : (
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+                <div style={{ backgroundColor: 'var(--card-bg)', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: 'var(--shadow-md)' }}>
+                    <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-dark)' }}>Order Summary</h2>
                     {!localCartCourses || localCartCourses.length === 0 ? (
-                        <p className="text-gray-600 mb-4">Your cart is empty.</p>
+                        <p style={{ color: 'var(--text-light)' }} className="mb-4">Your cart is empty.</p>
                     ) : (
                         <>
                             <ul className="mb-6">
                                 {localCartCourses.map((item) => (
-                                    <li key={item.product.id} className="flex justify-between items-center border-b py-2">
-                                        <span>{item.product.name} (x{item.quantity})</span>
-                                        <span>${(item.product.price * item.quantity).toFixed(2)}</span>
+                                    <li key={item.product.id} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                                        <span style={{ color: 'var(--text-dark)' }}>{item.product.name} (x{item.quantity})</span>
+                                        <span style={{ color: 'var(--text-dark)' }}>${(item.product.price * item.quantity).toFixed(2)}</span>
                                     </li>
                                 ))}
                             </ul>
-                            <p className="text-xl font-semibold mb-6">Total: ${(localTotalAmount || 0).toFixed(2)}</p>
+                            <p className="text-xl font-semibold mb-6" style={{ color: 'var(--text-dark)' }}>Total: ${(localTotalAmount || 0).toFixed(2)}</p>
                         </>
                     )}
 
-                    <h2 className="text-xl font-semibold mb-4">Shipping Information</h2>
+                    <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-dark)' }}>Shipping Information</h2>
                     {orderError && (
-                        <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
+                        <div style={{ backgroundColor: 'var(--danger)', color: 'white' }} className="p-3 rounded-lg mb-4">
                             {orderError}
                         </div>
                     )}
                     <form onSubmit={handleSubmit}>
                         <div className="space-y-4">
                             <div>
-                                <label htmlFor="name" className="block text-gray-700 mb-1">Full Name</label>
+                                <label htmlFor="name" className="block mb-1" style={{ color: 'var(--text-dark)' }}>Full Name</label>
                                 <input
                                     type="text"
                                     id="name"
                                     name="name"
                                     value={formData.name}
                                     onChange={handleInputChange}
-                                    className={`w-full p-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                                        errors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
-                                    }`}
+                                    className="w-full p-2 rounded-lg"
+                                    style={{
+                                        border: `1px solid ${errors.name ? 'var(--danger)' : 'var(--border-light)'}`,
+                                        transition: 'var(--transition)'
+                                    }}
                                 />
-                                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                                {errors.name && <p style={{ color: 'var(--danger)' }} className="text-sm mt-1">{errors.name}</p>}
                             </div>
 
                             <div>
-                                <label htmlFor="email" className="block text-gray-700 mb-1">Email Address</label>
+                                <label htmlFor="email" className="block mb-1" style={{ color: 'var(--text-dark)' }}>Email Address</label>
                                 <input
                                     type="email"
                                     id="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleInputChange}
-                                    className={`w-full p-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                                        errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
-                                    }`}
+                                    className="w-full p-2 rounded-lg"
+                                    style={{
+                                        border: `1px solid ${errors.email ? 'var(--danger)' : 'var(--border-light)'}`,
+                                        transition: 'var(--transition)'
+                                    }}
                                 />
-                                {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                                {errors.email && <p style={{ color: 'var(--danger)' }} className="text-sm mt-1">{errors.email}</p>}
                             </div>
 
                             <div>
-                                <label htmlFor="address" className="block text-gray-700 mb-1">Shipping Address</label>
+                                <label htmlFor="address" className="block mb-1" style={{ color: 'var(--text-dark)' }}>Shipping Address</label>
                                 <textarea
                                     id="address"
                                     name="address"
                                     value={formData.address}
                                     onChange={handleInputChange}
                                     rows="3"
-                                    className={`w-full p-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                                        errors.address ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
-                                    }`}
+                                    className="w-full p-2 rounded-lg"
+                                    style={{
+                                        border: `1px solid ${errors.address ? 'var(--danger)' : 'var(--border-light)'}`,
+                                        transition: 'var(--transition)'
+                                    }}
                                 ></textarea>
-                                {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+                                {errors.address && <p style={{ color: 'var(--danger)' }} className="text-sm mt-1">{errors.address}</p>}
                             </div>
 
                             <div>
-                                <label htmlFor="paymentMethod" className="block text-gray-700 mb-1">Payment Method</label>
+                                <label htmlFor="paymentMethod" className="block mb-1" style={{ color: 'var(--text-dark)' }}>Payment Method</label>
                                 <select
                                     id="paymentMethod"
                                     name="paymentMethod"
                                     value={formData.paymentMethod}
                                     onChange={handleInputChange}
-                                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full p-2 rounded-lg"
+                                    style={{
+                                        border: '1px solid var(--border-light)',
+                                        transition: 'var(--transition)'
+                                    }}
                                 >
                                     <option value="credit-card">Credit Card</option>
                                     <option value="debit-card">Debit Card</option>
@@ -272,11 +289,16 @@ const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                             <button
                                 type="submit"
                                 disabled={isSubmitting || !localCartCourses || localCartCourses.length === 0}
-                                className={`w-full py-2 px-4 rounded-lg text-white font-semibold ${
-                                    isSubmitting || !localCartCourses || localCartCourses.length === 0
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
-                                }`}
+                                className="w-full py-2 px-4 rounded-lg text-white font-semibold"
+                                style={{
+                                    backgroundColor: isSubmitting || !localCartCourses || localCartCourses.length === 0 
+                                        ? 'var(--text-light)' 
+                                        : 'var(--primary)',
+                                    transition: 'var(--transition)',
+                                    cursor: isSubmitting || !localCartCourses || localCartCourses.length === 0 
+                                        ? 'not-allowed' 
+                                        : 'pointer'
+                                }}
                             >
                                 {isSubmitting ? 'Processing...' : 'Place Order'}
                             </button>
