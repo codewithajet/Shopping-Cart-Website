@@ -14,7 +14,6 @@ const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
     const [orderError, setOrderError] = useState('');
     const [localCartCourses, setLocalCartCourses] = useState([]);
     const [localTotalAmount, setLocalTotalAmount] = useState(0);
-    const navigate = useNavigate();
 
     // Load cart data from localStorage on component mount
     useEffect(() => {
