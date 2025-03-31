@@ -8,6 +8,7 @@ function UserCartComponent({
     setCartCourses,
     clearCart,
     showCart,
+    
 }) {
     return (
         <div className={`cart ${cartCourses.length > 0 && showCart ? 'active' : ''}`}>
