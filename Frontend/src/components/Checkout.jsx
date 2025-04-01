@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, Navigate, } from 'react-router-dom';
+import {CountrySelect, StateSelect, CitySelect} from "react-country-state-city";
+import "react-country-state-city/dist/react-country-state-city.css";
 
     // Cart Summary Component
     export const CartSummary = ({ items, total, currency = '$' }) => {
@@ -76,42 +78,9 @@ import { Link, Navigate, } from 'react-router-dom';
     );
     };
 
-    // Order Confirmation Component
-    export const OrderConfirmation = ({ orderId, email }) => {
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-md text-center">
-        <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            </svg>
-        </div>
-        
-        <h2 className="text-2xl font-semibold mb-2">Thank you for your order!</h2>
-        <p className="mb-1 text-gray-600">Your order has been placed successfully.</p>
-        <p className="mb-4 font-medium">Order ID: #{orderId}</p>
-        <p className="mb-4 text-sm text-gray-600">We've sent a confirmation email to <span className="font-medium">{email}</span></p>
-        
-        <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">
-            <Link
-            to="/orders"
-            className="px-4 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors"
-            >
-            View My Orders
-            </Link>
-            <Link
-            to="/"
-            className=" py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-            >
-            Continue Shopping
-            </Link>
-        </div>
-        </div>
-    );
-    };
 
 // Main Checkout Component
 export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
-    // const navigate = useNavigate();
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -142,122 +111,30 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
     const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
     const [finalAmount, setFinalAmount] = useState(0);
     
-    // Country, State, City data
-    const [countries, setCountries] = useState([]);
-    const [states, setStates] = useState([]);
-    const [cities, setCities] = useState([]);
-    const [countryId, setCountryId] = useState('');
-    const [stateId, setStateId] = useState('');
+    // Location selection
+    const [countryId, setCountryId] = useState(0);
+    const [stateId, setStateId] = useState(0);
+    const [cityId, setCityId] = useState(0);
     
     // Delivery options
-    const deliveryOptions = [
+    const deliveryOptions = useMemo(() => [
         { id: 'pickup', name: 'Pick-up Station (Collect at your convenience)', price: 0 },
         { id: 'door', name: 'Door Delivery (Standard, 3-5 business days)', price: 5 }
-    ];
-    
-    // Load countries data
-    useEffect(() => {
-        const fetchCountries = async () => {
-            try {
-                const response = await fetch('https://api.countrystatecity.in/v1/countries', {
-                    headers: {
-                        'X-CSCAPI-KEY': 'YOUR_API_KEY_HERE' // Replace with your actual API key
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch countries');
-                }
-                
-                const countryData = await response.json();
-                setCountries(countryData);
-            } catch (error) {
-                console.error('Error fetching countries:', error);
-            }
-        };
-        
-        fetchCountries();
-    }, []);
-    
-    // Load states when country changes
-    useEffect(() => {
-        const fetchStates = async () => {
-            if (countryId) {
-                try {
-                    const response = await fetch(`https://api.countrystatecity.in/v1/countries/${countryId}/states`, {
-                        headers: {
-                            'X-CSCAPI-KEY': 'YOUR_API_KEY_HERE' // Replace with your actual API key
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch states');
-                    }
-                    
-                    const stateData = await response.json();
-                    setStates(stateData);
-                    setCities([]);
-                    setFormData(prev => ({
-                        ...prev, 
-                        state: '',
-                        city: ''
-                    }));
-                    setStateId('');
-                } catch (error) {
-                    console.error('Error fetching states:', error);
-                }
-            }
-        };
-        
-        fetchStates();
-    }, [countryId]);
-    
-    // Load cities when state changes
-    useEffect(() => {
-        const fetchCities = async () => {
-            if (stateId && countryId) {
-                try {
-                    const response = await fetch(`https://api.countrystatecity.in/v1/countries/${countryId}/states/${stateId}/cities`, {
-                        headers: {
-                            'X-CSCAPI-KEY': 'YOUR_API_KEY_HERE' // Replace with your actual API key
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch cities');
-                    }
-                    
-                    const cityData = await response.json();
-                    setCities(cityData);
-                    setFormData(prev => ({
-                        ...prev, 
-                        city: ''
-                    }));
-                } catch (error) {
-                    console.error('Error fetching cities:', error);
-                }
-            }
-        };
-        
-        fetchCities();
-    }, [stateId, countryId]);
-    
-    // Load cart data from localStorage/props and calculate final amount
+    ], []);
+
+    // Load cart data
     useEffect(() => {
         const loadCartData = () => {
-            // First priority: use props if available
             if (cartCourses && cartCourses.length > 0) {
                 setLocalCartCourses(cartCourses);
                 setLocalTotalAmount(totalAmount);
             } else {
-                // Second priority: load from localStorage
                 try {
                     const savedCart = localStorage.getItem('cartCourses');
                     if (savedCart) {
                         const parsedCart = JSON.parse(savedCart);
                         setLocalCartCourses(parsedCart);
                         
-                        // Get total from localStorage or calculate it
                         const savedTotal = localStorage.getItem('cartTotal');
                         if (savedTotal) {
                             setLocalTotalAmount(parseFloat(savedTotal));
@@ -278,22 +155,16 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
         
         loadCartData();
     }, [cartCourses, totalAmount]);
-    
-    // Calculate final amount whenever total, coupon, or delivery method changes
+
+    // Calculate final amount
     useEffect(() => {
         let calculatedAmount = localTotalAmount;
         
-        // Apply shipping cost if applicable
         const shippingCost = localTotalAmount >= 100 ? 0 : 10;
-        
-        // Add delivery cost
         const selectedDelivery = deliveryOptions.find(option => option.id === formData.deliveryMethod);
         const deliveryCost = selectedDelivery ? selectedDelivery.price : 0;
-        
-        // Apply taxes
         const taxAmount = localTotalAmount * 0.07;
         
-        // Apply coupon if any
         if (appliedCoupon) {
             if (appliedCoupon.type === 'percentage') {
                 const discountAmount = (localTotalAmount * appliedCoupon.value) / 100;
@@ -303,16 +174,13 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
             }
         }
         
-        // Ensure total is not negative
         calculatedAmount = Math.max(0, calculatedAmount);
-        
-        // Add shipping, delivery, and tax
         calculatedAmount += shippingCost + deliveryCost + taxAmount;
         
         setFinalAmount(calculatedAmount);
-    }, [localTotalAmount, appliedCoupon, formData.deliveryMethod]);
-    
-    // Load user data from localStorage if available
+    }, [localTotalAmount, appliedCoupon, formData.deliveryMethod, deliveryOptions]);
+
+    // Load user data
     useEffect(() => {
         const savedUserInfo = localStorage.getItem('userCheckoutInfo');
         if (savedUserInfo) {
@@ -324,11 +192,13 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                     saveInfo: true
                 }));
                 
-                // Set countryId and stateId based on saved data if available
-                if (parsedInfo.countryObj) {
-                    setCountryId(parsedInfo.countryObj.id);
-                    if (parsedInfo.stateObj) {
-                        setStateId(parsedInfo.stateObj.id);
+                if (parsedInfo.countryId) {
+                    setCountryId(parsedInfo.countryId);
+                    if (parsedInfo.stateId) {
+                        setStateId(parsedInfo.stateId);
+                        if (parsedInfo.cityId) {
+                            setCityId(parsedInfo.cityId);
+                        }
                     }
                 }
             } catch (err) {
@@ -336,61 +206,29 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
             }
         }
     }, []);
-    
-    // Track last clicked product for analytics
-    useEffect(() => {
-        const lastClickedProductId = localStorage.getItem('lastClickedProductId');
-        if (lastClickedProductId) {
-            // You could use this for analyticsitems or recommendations
-            // This could be connected to a proper analytics service
-        }
-    }, []);
-    
+
     const validateForm = () => {
         const newErrors = {};
         
-        if (!formData.firstName.trim()) {
-            newErrors.firstName = 'First name is required';
-        }
-        
-        if (!formData.lastName.trim()) {
-            newErrors.lastName = 'Last name is required';
-        }
-
+        if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
+        if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
         if (!formData.email.trim()) {
             newErrors.email = 'Email is required';
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
             newErrors.email = 'Please enter a valid email address';
         }
-        
-        if (!formData.phone.trim()) {
-            newErrors.phone = 'Phone number is required';
-        }
-
-        if (!formData.address.trim()) {
-            newErrors.address = 'Address is required';
-        }
-        
-        if (!formData.country) {
-            newErrors.country = 'Country is required';
-        }
-        
-        if (!formData.state) {
-            newErrors.state = 'State is required';
-        }
-        
-        if (!formData.city) {
-            newErrors.city = 'City is required';
-        }
-        
+        if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+        if (!formData.address.trim()) newErrors.address = 'Address is required';
+        if (!countryId) newErrors.country = 'Country is required';
+        if (!stateId) newErrors.state = 'State is required';
+        if (!cityId) newErrors.city = 'City is required';
         if (!formData.zipCode.trim()) {
             newErrors.zipCode = 'ZIP code is required';
         } else if (!/^\d{5}(-\d{4})?$/.test(formData.zipCode)) {
             newErrors.zipCode = 'Please enter a valid ZIP code';
         }
-        
         if (formData.isGift && !formData.giftMessage.trim()) {
-            newErrors.giftMessage = 'Gift message is localCartCoursesrequired when sending as a gift';
+            newErrors.giftMessage = 'Gift message is required when sending as a gift';
         }
 
         setErrors(newErrors);
@@ -409,50 +247,57 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
         }
     };
     
-    const handleCountryChange = (e) => {
-        const selectedCountryId = e.target.value;
-        setCountryId(selectedCountryId);
-        
-        const selectedCountry = countries.find(country => country.id === selectedCountryId || country.iso2 === selectedCountryId);
-        setFormData({ 
-            ...formData, 
-            country: selectedCountryId,
-            countryObj: selectedCountry
-        });
-        
-        if (errors.country) {
-            setErrors({ ...errors, country: '' });
+    const handleCountryChange = (countryData) => {
+        if (countryData) {
+            setCountryId(countryData.id);
+            setStateId(0);
+            setCityId(0);
+            
+            setFormData({
+                ...formData,
+                country: countryData.name,
+                countryId: countryData.id,
+                state: '',
+                city: ''
+            });
+            
+            if (errors.country) {
+                setErrors({ ...errors, country: '' });
+            }
         }
     };
     
-    const handleStateChange = (e) => {
-        const selectedStateId = e.target.value;
-        setStateId(selectedStateId);
-        
-        const selectedState = states.find(state => state.id === selectedStateId || state.iso2 === selectedStateId);
-        setFormData({ 
-            ...formData, 
-            state: selectedStateId,
-            stateObj: selectedState
-        });
-        
-        if (errors.state) {
-            setErrors({ ...errors, state: '' });
+    const handleStateChange = (stateData) => {
+        if (stateData) {
+            setStateId(stateData.id);
+            setCityId(0);
+            
+            setFormData({
+                ...formData,
+                state: stateData.name,
+                stateId: stateData.id,
+                city: ''
+            });
+            
+            if (errors.state) {
+                setErrors({ ...errors, state: '' });
+            }
         }
     };
     
-    const handleCityChange = (e) => {
-        const selectedCityId = e.target.value;
-        
-        const selectedCity = cities.find(city => city.id === selectedCityId);
-        setFormData({ 
-            ...formData, 
-            city: selectedCityId,
-            cityObj: selectedCity
-        });
-        
-        if (errors.city) {
-            setErrors({ ...errors, city: '' });
+    const handleCityChange = (cityData) => {
+        if (cityData) {
+            setCityId(cityData.id);
+            
+            setFormData({
+                ...formData,
+                city: cityData.name,
+                cityId: cityData.id
+            });
+            
+            if (errors.city) {
+                setErrors({ ...errors, city: '' });
+            }
         }
     };
     
@@ -466,30 +311,39 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
         setCouponError('');
         
         try {
-            // This would be a real API call in production
-            // Simulating API call with timeout
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Verify the coupon code (in a real app, this would be an API call)
-            if (couponCode.toLowerCase() === 'welcome10') {
-                setAppliedCoupon({
+            const response = await fetch('http://127.0.0.1:5000/coupons/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
                     code: couponCode,
-                    type: 'percentage',
-                    value: 10,
-                    description: '10% off your entire order'
-                });
-            } else if (couponCode.toLowerCase() === 'newuser') {
-                setAppliedCoupon({
-                    code: couponCode,
-                    type: 'fixed',
-                    value: 15,
-                    description: '$15 off your order'
-                });
-            } else {
-                setCouponError('Invalid or expired coupon code');
+                    subtotal: localTotalAmount
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to validate coupon');
             }
+
+            if (!data.valid) {
+                throw new Error(data.message || 'Invalid coupon');
+            }
+
+            setAppliedCoupon({
+                code: data.coupon.code,
+                type: data.coupon.discount_type,
+                value: data.coupon.discount_value,
+                description: `Coupon applied (${data.coupon.discount_type === 'percentage' 
+                    ? `${data.coupon.discount_value}% off` 
+                    : `$${data.coupon.discount_value} off`})`,
+                couponData: data.coupon
+            });
+
         } catch (err) {
-            setCouponError('Error applying coupon. Please try again.');
+            setCouponError(err.message || 'Error applying coupon. Please try again.');
         } finally {
             setIsApplyingCoupon(false);
         }
@@ -500,46 +354,33 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
         setCouponCode('');
     };
     
-    // Function to check if items are in stock
     const checkStock = async () => {
         try {
-                    // Check if all items are in stock
-                    const stockStatus = await Promise.all(localCartCourses.map(async item => {
-                        // Simulated stock check
-                        const isInStock = Math.random() > 0.1; // 90% chance item is in stock
-                        return {
-                            id: item.product.id,
-                            inStock: isInStock,
-                            quantity: item.quantity
-                        };
-                    }));
-
-                    const outOfStockItems = stockStatus.filter(item => !item.inStock);
-                    if (outOfStockItems.length > 0) {
-                        throw new Error('Some items in your cart are no longer in stock. Please remove them and try again.');
-                    }
- // In a real application, this would be an API call
-            // Simulating API call with timeout
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // For this example, we'll assume all items are in stock
-            return true;
-            
-            // In a real application, it would look something like:
-            /*
-            const response = await fetch('http://127.0.0.1:5000/check-stock', {
+            const response = await fetch('http://127.0.0.1:5000/products/check-stock', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items: items.map(i => ({ id: i.product.id, quantity: i.quantity })) })
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    items: localCartCourses.map(item => ({
+                        productId: item.product.id,
+                        quantity: item.quantity
+                    }))
+                }),
             });
-            
+
+            const data = await response.json();
+
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message);
+                throw new Error(data.message || 'Could not verify stock availability');
             }
-            
+
+            if (data.outOfStockItems && data.outOfStockItems.length > 0) {
+                const outOfStockNames = data.outOfStockItems.map(item => item.name).join(', ');
+                throw new Error(`Some items in your cart are no longer available: ${outOfStockNames}`);
+            }
+
             return true;
-            */
         } catch (err) {
             setOrderError(err.message || 'Could not verify stock availability. Please try again.');
             return false;
@@ -554,13 +395,11 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
             return;
         }
 
-        // Check if cart has items
         if (!localCartCourses || localCartCourses.length === 0) {
             setOrderError('Your cart is empty. Please add items before checkout.');
             return;
         }
         
-        // Check stock availability
         const stockAvailable = await checkStock();
         if (!stockAvailable) {
             return;
@@ -570,71 +409,67 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
         setOrderError('');
 
         try {
-            // Save user info if requested
             if (formData.saveInfo) {
-                const userInfoToSave = { ...formData };
-                delete userInfoToSave.saveInfo; // Don't need to save this flag
+                const userInfoToSave = { 
+                    ...formData,
+                    countryId,
+                    stateId,
+                    cityId
+                };
+                delete userInfoToSave.saveInfo;
                 localStorage.setItem('userCheckoutInfo', JSON.stringify(userInfoToSave));
             } else {
                 localStorage.removeItem('userCheckoutInfo');
             }
             
-            // Get selected delivery option
-            const selectedDelivery = deliveryOptions.find(option => option.id === formData.deliveryMethod);
+            // const selectedDelivery = deliveryOptions.find(option => option.id === formData.deliveryMethod);
             
-            // Prepare order data
-            const order = {
-                customer: {
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    email: formData.email,
-                    phone: formData.phone
-                },
-                shipping: {
-                    address: formData.address,
-                    city: formData.cityObj ? formData.cityObj.name : '',
-                    state: formData.stateObj ? formData.stateObj.name : '',
-                    zipCode: formData.zipCode,
-                    country: formData.countryObj ? formData.countryObj.name : '',
-                    cost: localTotalAmount >= 100 ? 0 : 10
-                },
-                delivery: {
-                    method: formData.deliveryMethod,
-                    name: selectedDelivery ? selectedDelivery.name : '',
-                    cost: selectedDelivery ? selectedDelivery.price : 0,
-                    instructions: formData.deliveryInstructions,
-                    isGift: formData.isGift,
-                    giftMessage: formData.isGift ? formData.giftMessage : ''
-                },
-                items: localCartCourses,
-                payment: {
-                    method: formData.paymentMethod,
-                    // Other payment details would go here
-                },
+            const orderData = {
+                customer_name: `${formData.firstName} ${formData.lastName}`,
+                customer_email: formData.email,
+                customer_phone: formData.phone,
+                shipping_address: formData.address,
+                shipping_city: formData.city,
+                shipping_state: formData.state,
+                shipping_country: formData.country,
+                shipping_zip_code: formData.zipCode,
+                delivery_method: formData.deliveryMethod,
+                delivery_instructions: formData.deliveryInstructions,
+                is_gift: formData.isGift,
+                gift_message: formData.isGift ? formData.giftMessage : '',
                 subtotal: localTotalAmount,
-                tax: localTotalAmount * 0.07,
-                discount: appliedCoupon ? (
-                    appliedCoupon.type === 'percentage' 
-                        ? (localTotalAmount * appliedCoupon.value / 100) 
-                        : appliedCoupon.value
-                ) : 0,
-                total: finalAmount,
-                couponApplied: appliedCoupon ? appliedCoupon.code : null,
-                orderDate: new Date().toISOString()
+                shipping_cost: localTotalAmount >= 100 ? 0 : 10,
+                tax_amount: localTotalAmount * 0.07,
+                payment_method: formData.paymentMethod,
+                items: localCartCourses.map(item => ({
+                    product_id: item.product.id,
+                    quantity: item.quantity,
+                    unit_price: item.product.price,
+                    attributes: {
+                        name: item.product.title,
+                        image: item.product.image
+                    }
+                })),
+                coupon_code: appliedCoupon?.code || null
             };
 
-            // In a real application, you would send this data to your server
-            console.log("Sending order data:", JSON.stringify(order));
+            const response = await fetch('http://127.0.0.1:5000/orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(orderData),
+            });
 
-            // Simulate API call with timeout
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // For demo purposes, we'll generate a random order ID
-            const generatedOrderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
-            setOrderId(generatedOrderId);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to place order');
+            }
+
+            setOrderId(data.order_number);
             setOrderPlaced(true);
             
-            // Clear cart
             if (clearCart && typeof clearCart === 'function') {
                 clearCart();
             } else {
@@ -650,6 +485,11 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
             setIsSubmitting(false);
         }
     };
+
+    if (orderPlaced) {
+        return <OrderConfirmation orderId={orderId} email={formData.email} />;
+    }
+
 
     return (
         <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -764,23 +604,16 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                                             </div>
                                             
                                             <div>
-                                                <label htmlFor="country" className="block mb-1 text-sm font-medium">
+                                                <label className="block mb-1 text-sm font-medium">
                                                     Country
                                                 </label>
-                                                <select
-                                                    id="country"
-                                                    name="country"
-                                                    value={countryId}
+                                                <CountrySelect
                                                     onChange={handleCountryChange}
-                                                    className={`w-full p-2 border rounded-md ${errors.country ? 'border-red-500' : 'border-gray-300'}`}
-                                                >
-                                                    <option value="">Select Country</option>
-                                                    {countries.map((country) => (
-                                                        <option key={country.id} value={country.id}>
-                                                            {country.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                    placeHolder="Select Country"
+                                                    containerClassName={`w-full ${errors.country ? 'border-red-500' : ''}`}
+                                                    inputClassName={`w-full p-2 border rounded-md ${errors.country ? 'border-red-500' : 'border-gray-300'}`}
+                                                    value={countryId || ""}
+                                                />
                                                 {errors.country && (
                                                     <p className="text-red-500 text-xs mt-1">{errors.country}</p>
                                                 )}
@@ -788,48 +621,37 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                                             
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label htmlFor="state" className="block mb-1 text-sm font-medium">
+                                                    <label className="block mb-1 text-sm font-medium">
                                                         State / Province
                                                     </label>
-                                                    <select
-                                                        id="state"
-                                                        name="state"
-                                                        value={stateId}
+                                                    <StateSelect
+                                                        countryid={countryId}
                                                         onChange={handleStateChange}
+                                                        placeHolder="Select State"
+                                                        containerClassName={`w-full ${errors.state ? 'border-red-500' : ''}`}
+                                                        inputClassName={`w-full p-2 border rounded-md ${errors.state ? 'border-red-500' : 'border-gray-300'}`}
+                                                        value={stateId || ""}
                                                         disabled={!countryId}
-                                                        className={`w-full p-2 border rounded-md ${errors.state ? 'border-red-500' : 'border-gray-300'} ${!countryId ? 'bg-gray-100' : ''}`}
-                                                    >
-                                                        <option value="">Select State</option>
-                                                        {states.map((state) => (
-                                                            <option key={state.id} value={state.id}>
-                                                                {state.name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                    />
                                                     {errors.state && (
                                                         <p className="text-red-500 text-xs mt-1">{errors.state}</p>
                                                     )}
                                                 </div>
                                                 
                                                 <div>
-                                                    <label htmlFor="city" className="block mb-1 text-sm font-medium">
+                                                    <label className="block mb-1 text-sm font-medium">
                                                         City
                                                     </label>
-                                                    <select
-                                                        id="city"
-                                                        name="city"
-                                                        value={formData.city}
+                                                    <CitySelect
+                                                        countryid={countryId}
+                                                        stateid={stateId}
                                                         onChange={handleCityChange}
+                                                        placeHolder="Select City"
+                                                        containerClassName={`w-full ${errors.city ? 'border-red-500' : ''}`}
+                                                        inputClassName={`w-full p-2 border rounded-md ${errors.city ? 'border-red-500' : 'border-gray-300'}`}
+                                                        value={cityId || ""}
                                                         disabled={!stateId}
-                                                        className={`w-full p-2 border rounded-md ${errors.city ? 'border-red-500' : 'border-gray-300'} ${!stateId ? 'bg-gray-100' : ''}`}
-                                                    >
-                                                        <option value="">Select City</option>
-                                                        {cities.map((city) => (
-                                                            <option key={city.id} value={city.id}>
-                                                                {city.name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                    />
                                                     {errors.city && (
                                                         <p className="text-red-500 text-xs mt-1">{errors.city}</p>
                                                     )}
@@ -961,162 +783,287 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                                                         onChange={handleInputChange}
                                                         className="mr-2"
                                                     />
-                                                    <span className="font-medium">PayPal</span>
+                                                    <div className="flex items-center">
+                                                        <span className="font-medium mr-2">PayPal</span>
+                                                        <div className="flex space-x-1">
+                                                            <span className="text-blue-600">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                                </svg>
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </label>
                                             </div>
-                                            
-                                            <div className="mt-4">
-                                                <label className="flex items-center">
+
+                                            <div>
+                                                <label className="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50">
                                                     <input
-                                                        type="checkbox"
-                                                        name="saveInfo"
-                                                        checked={formData.saveInfo}
+                                                        type="radio"
+                                                        name="paymentMethod"
+                                                        value="bank-transfer"
+                                                        checked={formData.paymentMethod === 'bank-transfer'}
                                                         onChange={handleInputChange}
                                                         className="mr-2"
                                                     />
-                                                    <span className="text-sm">Save my information for faster checkout next time</span>
+                                                    <div className="flex items-center">
+                                                        <span className="font-medium mr-2">Bank Transfer</span>
+                                                        <div className="flex space-x-1">
+                                                            <span className="text-blue-600">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                                                                </svg>
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </label>
                                             </div>
                                         </div>
-                                        
-                                        <div className="mt-8 pt-6 border-t">
+
+                                        <div className="mb-6">
+                                            <label className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    name="saveInfo"
+                                                    checked={formData.saveInfo}
+                                                    onChange={handleInputChange}
+                                                    className="mr-2"
+                                                />
+                                                <span className="text-sm">Save this information for future orders</span>
+                                            </label>
+                                        </div>
+
+                                        <div className="mt-8">
                                             <button
                                                 type="submit"
-                                                className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center"
                                                 disabled={isSubmitting}
+                                                className={`w-full py-3 px-4 text-white font-medium rounded-md ${
+                                                    isSubmitting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+                                                }`}
                                             >
-                                                {isSubmitting ? (
-                                                    <>
-                                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                        </svg>
-                                                        Processing...
-                                                    </>
-                                                ) : (
-                                                    'Complete Order'
-                                                )}
+                                                {isSubmitting ? 'Processing Order...' : 'Place Order'}
                                             </button>
                                         </div>
                                     </form>
                                 </div>
                             </div>
-                            
-                            {/* Right Column - Order Summary */}
-                            <div className="md:col-span-1">
-                                <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm sticky top-4">
-                                    <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-                                    
-                                    <CartSummary 
-                                        items={localCartCourses}
-                                        total={localTotalAmount}
-                                    />
-                                    
-                                    <div className="mb-6">
-                                        <h3 className="font-medium mb-3">Delivery Method</h3>
-                                        <div className="text-sm">
-                                            {deliveryOptions.find(option => option.id === formData.deliveryMethod)?.name || 'Standard Delivery'}
-                                            <span className="float-right">
-                                                {formData.deliveryMethod === 'standard' ? 'Free' : 
-                                                 `$${deliveryOptions.find(option => option.id === formData.deliveryMethod)?.price.toFixed(2) || '0.00'}`}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Coupon Section */}
-                                    <div className="mb-6 pb-4 border-b">
-                                        <h3 className="font-medium mb-3">Apply Coupon</h3>
-                                        {appliedCoupon ? (
-                                            <div className="bg-green-50 border border-green-200 rounded-md p-3 mb-3">
-                                                <div className="flex justify-between items-center">
-                                                    <div>
-                                                        <p className="font-medium text-green-800">{appliedCoupon.code}</p>
-                                                        <p className="text-sm text-green-700">{appliedCoupon.description}</p>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={removeCoupon}
-                                                        className="text-red-500 hover:text-red-700"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="flex">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Enter coupon code"
-                                                    value={couponCode}
-                                                    onChange={(e) => {
-                                                        setCouponCode(e.target.value);
-                                                        setCouponError('');
-                                                    }}
-                                                    className="flex-grow p-2 border rounded-l-md"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={handleApplyCoupon}
-                                                    disabled={isApplyingCoupon}
-                                                    className="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded-r-md whitespace-nowrap"
-                                                >
-                                                    {isApplyingCoupon ? 'Applying...' : 'Apply'}
-                                                </button>
-                                            </div>
-                                        )}
-                                        {couponError && (
-                                            <p className="text-red-500 text-xs mt-1">{couponError}</p>
-                                        )}
-                                    </div>
-                                    
-                                    <div>
-                                        <h3 className="font-medium mb-3">Final Price</h3>
-                                        <div className="space-y-2 text-sm">
-                                            <div className="flex justify-between">
-                                                <span>Subtotal:</span>
-                                                <span>${localTotalAmount.toFixed(2)}</span>
-                                            </div>
-                                            
-                                            <div className="flex justify-between">
-                                                <span>Shipping:</span>
-                                                <span>{localTotalAmount >= 100 ? 'Free' : '$10.00'}</span>
-                                            </div>
-                                            
-                                            <div className="flex justify-between">
-                                                <span>Delivery:</span>
-                                                <span>
-                                                    ${deliveryOptions.find(option => option.id === formData.deliveryMethod)?.price.toFixed(2) || '0.00'}
+
+                             {/* Right Column - Order Summary */}
+                                <div className="md:col-span-1">
+                                    <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm sticky top-4">
+                                        <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+                                        
+                                        <CartSummary 
+                                            items={localCartCourses}
+                                            total={localTotalAmount}
+                                        />
+                                        
+                                        <div className="mb-6">
+                                            <h3 className="font-medium mb-3">Delivery Method</h3>
+                                            <div className="text-sm">
+                                                {deliveryOptions.find(option => option.id === formData.deliveryMethod)?.name || 'Standard Delivery'}
+                                                <span className="float-right">
+                                                    {formData.deliveryMethod === 'standard' ? 'Free' : 
+                                                    `$${deliveryOptions.find(option => option.id === formData.deliveryMethod)?.price.toFixed(2) || '0.00'}`}
                                                 </span>
                                             </div>
-                                            
-                                            <div className="flex justify-between">
-                                                <span>Tax (7%):</span>
-                                                <span>${(localTotalAmount * 0.07).toFixed(2)}</span>
-                                            </div>
-                                            
-                                            {appliedCoupon && (
-                                                <div className="flex justify-between text-green-600">
-                                                    <span>Discount ({appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}%` : '$' + appliedCoupon.value}):</span>
-                                                    <span>
-                                                        -${appliedCoupon.type === 'percentage' 
-                                                            ? ((localTotalAmount * appliedCoupon.value) / 100).toFixed(2) 
-                                                            : appliedCoupon.value.toFixed(2)}
-                                                    </span>
+                                        </div>
+                                        
+                                        {/* Coupon Section */}
+                                        <div className="mb-6 pb-4 border-b">
+                                            <h3 className="font-medium mb-3">Apply Coupon</h3>
+                                            {appliedCoupon ? (
+                                                <div className="bg-green-50 border border-green-200 rounded-md p-3 mb-3">
+                                                    <div className="flex justify-between items-center">
+                                                        <div>
+                                                            <p className="font-medium text-green-800">{appliedCoupon.code}</p>
+                                                            <p className="text-sm text-green-700">{appliedCoupon.description}</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={removeCoupon}
+                                                            className="text-red-500 hover:text-red-700"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Enter coupon code"
+                                                        value={couponCode}
+                                                        onChange={(e) => {
+                                                            setCouponCode(e.target.value);
+                                                            setCouponError('');
+                                                        }}
+                                                        className="flex-grow p-2 border rounded-l-md"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleApplyCoupon}
+                                                        disabled={isApplyingCoupon}
+                                                        className="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded-r-md whitespace-nowrap"
+                                                    >
+                                                        {isApplyingCoupon ? 'Applying...' : 'Apply'}
+                                                    </button>
                                                 </div>
                                             )}
-                                            
-                                            <div className="flex justify-between font-bold pt-2 border-t text-lg">
-                                                <span>Total:</span>
-                                                <span>${finalAmount.toFixed(2)}</span>
+                                            {couponError && (
+                                                <p className="text-red-500 text-xs mt-1">{couponError}</p>
+                                            )}
+                                        </div>
+                                        
+                                        <div>
+                                            <h3 className="font-medium mb-3">Final Price</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span>Subtotal:</span>
+                                                    <span>${localTotalAmount.toFixed(2)}</span>
+                                                </div>
+                                                
+                                                <div className="flex justify-between">
+                                                    <span>Shipping:</span>
+                                                    <span>{localTotalAmount >= 100 ? 'Free' : '$10.00'}</span>
+                                                </div>
+                                                
+                                                <div className="flex justify-between">
+                                                    <span>Delivery:</span>
+                                                    <span>
+                                                        ${deliveryOptions.find(option => option.id === formData.deliveryMethod)?.price.toFixed(2) || '0.00'}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="flex justify-between">
+                                                    <span>Tax (7%):</span>
+                                                    <span>${(localTotalAmount * 0.07).toFixed(2)}</span>
+                                                </div>
+                                                
+                                                {appliedCoupon && (
+                                                    <div className="flex justify-between text-green-600">
+                                                        <span>Discount ({appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}%` : '$' + appliedCoupon.value}):</span>
+                                                        <span>
+                                                            -${appliedCoupon.type === 'percentage' 
+                                                                ? ((localTotalAmount * appliedCoupon.value) / 100).toFixed(2) 
+                                                                : appliedCoupon.value.toFixed(2)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="flex justify-between font-bold pt-2 border-t text-lg">
+                                                    <span>Total:</span>
+                                                    <span>${finalAmount.toFixed(2)}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                        </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Order Confirmation Component
+const OrderConfirmation = ({ orderId, email }) => {
+    return (
+        <div className="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-sm">
+            <div className="text-center mb-6">
+                <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">Order Confirmed!</h1>
+                <p className="text-gray-600">Thank you for your purchase</p>
+            </div>
+            
+            <div className="bg-gray-50 p-4 rounded-md mb-6">
+                <div className="flex flex-col md:flex-row justify-between mb-4">
+                    <div className="mb-2 md:mb-0">
+                        <p className="text-sm text-gray-500">Order ID</p>
+                        <p className="font-medium">{orderId}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500">Confirmation sent to</p>
+                        <p className="font-medium">{email}</p>
+                    </div>
+                </div>
+                <p className="text-sm text-gray-600">
+                    We'll send you shipping confirmation when your items are on the way!
+                </p>
+            </div>
+            
+            <div className="mb-6">
+                <h2 className="text-lg font-semibold mb-3">What happens next?</h2>
+                <div className="space-y-4">
+                    <div className="flex">
+                        <div className="flex-shrink-0 mr-3">
+                            <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
                             </div>
                         </div>
-                    )}
+                        <div>
+                            <h3 className="font-medium">Order Confirmation</h3>
+                            <p className="text-sm text-gray-600">
+                                You'll receive an email confirmation with your order details.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex">
+                        <div className="flex-shrink-0 mr-3">
+                            <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="font-medium">Order Processing</h3>
+                            <p className="text-sm text-gray-600">
+                                We'll start processing your order right away.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex">
+                        <div className="flex-shrink-0 mr-3">
+                            <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="font-medium">Shipping & Delivery</h3>
+                            <p className="text-sm text-gray-600">
+                                We'll notify you when your items ship and provide tracking information.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="text-center space-y-4">
+                <button 
+                    type="button"
+                    onClick={() => window.location.href = '/'}
+                    className="inline-block px-6 py-2.5 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors"
+                >
+                    Continue Shopping
+                </button>
+                
+                <p className="text-sm text-gray-600">
+                    Have a question? <a href="/contact" className="text-blue-600 hover:text-blue-800">Contact our support team</a>
+                </p>
             </div>
         </div>
     );
