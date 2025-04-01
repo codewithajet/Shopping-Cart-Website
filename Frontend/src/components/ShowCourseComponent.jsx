@@ -3,15 +3,24 @@ import React, { useState } from 'react';
 function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) {
     // State to track which product is selected for the popup
     const [selectedProduct, setSelectedProduct] = useState(null);
+    // Add state for quantity in popup
+    const [quantity, setQuantity] = useState(1);
     
     // Function to open the popup with the selected product
     const openProductPopup = (product) => {
         setSelectedProduct(product);
+        // Reset quantity to 1 whenever a new popup is opened
+        setQuantity(1);
     };
     
     // Function to close the popup
     const closeProductPopup = () => {
         setSelectedProduct(null);
+    };
+    
+    // Function to update quantity
+    const updateQuantity = (change) => {
+        setQuantity(prevQuantity => Math.max(1, prevQuantity + change));
     };
     
     return (
@@ -57,146 +66,151 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
             
             {/* Product Popup */}
             {selectedProduct && (
-    <div className="product-popup-overlay" onClick={closeProductPopup}>
-        <div className="product-popup-content" onClick={(e) => e.stopPropagation()}>
-            <span className="close-popup" onClick={closeProductPopup}>&times;</span>
-            
-            <div className="popup-product-container">
-                {/* Image Section */}
-                <div className="popup-product-images">
-                    {selectedProduct.specialOffer && (
-                        <span className="special-offer-label">Special Offer</span>
-                    )}
-                    
-                    <div className="image-nav">
-                        <button className="image-nav-button">
-                            <i className="fas fa-chevron-left"></i>
-                        </button>
-                        <button className="image-nav-button">
-                            <i className="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
-                    
-                    <img 
-                        src={selectedProduct.image || "/src/assets/avatar.png"} 
-                        alt={selectedProduct.name} 
-                        className="popup-product-image" 
-                    />
-                </div>
-                
-                {/* Content Section */}
-                <div className="popup-product-content">
-                    <h2>{selectedProduct.name}</h2>
-                    
-                    {/* Rating */}
-                    {selectedProduct.rating && (
-                        <div className="popup-product-rating">
-                            <div className="stars">
-                                {[...Array(5)].map((_, i) => (
-                                    <i 
-                                        key={i} 
-                                        className={`fas fa-star${i < Math.floor(selectedProduct.rating) ? '' : '-half-alt'}`}
-                                    ></i>
-                                ))}
-                            </div>
-                            <span className="review-count">({selectedProduct.reviewCount || 0} reviews)</span>
-                        </div>
-                    )}
-                    
-                    {/* Price */}
-                    <div className="popup-product-price">
-                        {selectedProduct.originalPrice ? (
-                            <>
-                                <span className="original-price">${selectedProduct.originalPrice}</span>
-                                <span className="discounted-price">${selectedProduct.price}</span>
-                            </>
-                        ) : (
-                            <span className="discounted-price">${selectedProduct.price}</span>
-                        )}
-                    </div>
-                    
-                    {/* Tags */}
-                    {selectedProduct.tags && (
-                        <div className="product-tags">
-                            {selectedProduct.tags.map((tag, index) => (
-                                <span key={index} className="product-tag">{tag}</span>
-                            ))}
-                        </div>
-                    )}
-                    
-                    {/* Quantity Selector */}
-                    <div className="quantity-selector">
-                        {/* <button onClick={() => updateQuantity(-1)}>-</button> */}
-                        <input 
-                            type="number" 
-                            // value={quantity} 
-                            min="1" 
-                            // onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1)}
-                        />
-                        {/* <button onClick={() => updateQuantity(1)}>+</button> */}
-                    </div>
-                    
-                    {/* Description */}
-                    <div className="popup-product-description">
-                        <p>{selectedProduct.description}</p>
-                    </div>
-                    
-                    {/* Additional Details */}
-                    <div className="popup-product-details">
-                        {selectedProduct.instructor && (
-                            <div className="detail-item">
-                                <span className="icon"><i className="fas fa-chalkboard-teacher"></i></span>
-                                <div className="content">
-                                    <h4>Instructor</h4>
-                                    <p>{selectedProduct.instructor}</p>
-                                </div>
-                            </div>
-                        )}
+                <div className="product-popup-overlay" onClick={closeProductPopup}>
+                    <div className="product-popup-content" onClick={(e) => e.stopPropagation()}>
+                        <span className="close-popup" onClick={closeProductPopup}>&times;</span>
                         
-                        {selectedProduct.duration && (
-                            <div className="detail-item">
-                                <span className="icon"><i className="far fa-clock"></i></span>
-                                <div className="content">
-                                    <h4>Duration</h4>
-                                    <p>{selectedProduct.duration}</p>
+                        <div className="popup-product-container">
+                            {/* Image Section */}
+                            <div className="popup-product-images">
+                                {selectedProduct.specialOffer && (
+                                    <span className="special-offer-label">Special Offer</span>
+                                )}
+                                
+                                <div className="image-nav">
+                                    <button className="image-nav-button">
+                                        <i className="fas fa-chevron-left"></i>
+                                    </button>
+                                    <button className="image-nav-button">
+                                        <i className="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                                
+                                <img 
+                                    src={selectedProduct.image || "/src/assets/avatar.png"} 
+                                    alt={selectedProduct.name} 
+                                    className="popup-product-image" 
+                                />
+                            </div>
+                            
+                            {/* Content Section */}
+                            <div className="popup-product-content">
+                                <h2>{selectedProduct.name}</h2>
+                                
+                                {/* Rating */}
+                                {selectedProduct.rating && (
+                                    <div className="popup-product-rating">
+                                        <div className="stars">
+                                            {[...Array(5)].map((_, i) => (
+                                                <i 
+                                                    key={i} 
+                                                    className={`fas fa-star${i < Math.floor(selectedProduct.rating) ? '' : '-half-alt'}`}
+                                                ></i>
+                                            ))}
+                                        </div>
+                                        <span className="review-count">({selectedProduct.reviewCount || 0} reviews)</span>
+                                    </div>
+                                )}
+                                
+                                {/* Price */}
+                                <div className="popup-product-price">
+                                    {selectedProduct.originalPrice ? (
+                                        <>
+                                            <span className="original-price">${selectedProduct.originalPrice}</span>
+                                            <span className="discounted-price">${selectedProduct.price}</span>
+                                        </>
+                                    ) : (
+                                        <span className="discounted-price">${selectedProduct.price}</span>
+                                    )}
+                                </div>
+                                
+                                {/* Tags */}
+                                {selectedProduct.tags && (
+                                    <div className="product-tags">
+                                        {selectedProduct.tags.map((tag, index) => (
+                                            <span key={index} className="product-tag">{tag}</span>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                {/* Quantity Selector */}
+                                <div className="quantity-selector">
+                                    <button onClick={() => updateQuantity(-1)}>-</button>
+                                    <input 
+                                        type="number" 
+                                        value={quantity} 
+                                        min="1" 
+                                        onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                    />
+                                    <button onClick={() => updateQuantity(1)}>+</button>
+                                </div>
+                                
+                                {/* Description */}
+                                <div className="popup-product-description">
+                                    <p>{selectedProduct.description}</p>
+                                </div>
+                                
+                                {/* Additional Details */}
+                                <div className="popup-product-details">
+                                    {selectedProduct.instructor && (
+                                        <div className="detail-item">
+                                            <span className="icon"><i className="fas fa-chalkboard-teacher"></i></span>
+                                            <div className="content">
+                                                <h4>Instructor</h4>
+                                                <p>{selectedProduct.instructor}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {selectedProduct.duration && (
+                                        <div className="detail-item">
+                                            <span className="icon"><i className="far fa-clock"></i></span>
+                                            <div className="content">
+                                                <h4>Duration</h4>
+                                                <p>{selectedProduct.duration}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {selectedProduct.level && (
+                                        <div className="detail-item">
+                                            <span className="icon"><i className="fas fa-signal"></i></span>
+                                            <div className="content">
+                                                <h4>Skill Level</h4>
+                                                <p>{selectedProduct.level}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* Action Buttons */}
+                                <div className="popup-actions">
+                                    <button
+                                        className="popup-add-to-cart-button"
+                                        onClick={() => {
+                                            // Create a new product object with the selected quantity
+                                            const productToAdd = {...selectedProduct};
+                                            // Call the addCourseToCartFunction multiple times based on quantity
+                                            // or modify the Cart.jsx addCourseToCartFunction to handle quantity
+                                            for (let i = 0; i < quantity; i++) {
+                                                addCourseToCartFunction(productToAdd);
+                                            }
+                                            closeProductPopup();
+                                        }}
+                                    >
+                                        Add to Cart
+                                    </button>
+                                    <button 
+                                        className="popup-wishlist-button"
+                                        // onClick={() => addToWishlist(selectedProduct)}
+                                    >
+                                        <i className="far fa-heart"></i>
+                                    </button>
                                 </div>
                             </div>
-                        )}
-                        
-                        {selectedProduct.level && (
-                            <div className="detail-item">
-                                <span className="icon"><i className="fas fa-signal"></i></span>
-                                <div className="content">
-                                    <h4>Skill Level</h4>
-                                    <p>{selectedProduct.level}</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    
-                    {/* Action Buttons */}
-                    <div className="popup-actions">
-                        <button
-                            className="popup-add-to-cart-button"
-                            onClick={() => {
-                                // addCourseToCartFunction({...selectedProduct, quantity});
-                                closeProductPopup();
-                                // setQuantity(1); // Reset quantity after adding
-                            }}
-                        >
-                            Add to Cart
-                        </button>
-                        <button 
-                            className="popup-wishlist-button"
-                            // onClick={() => addToWishlist(selectedProduct)}
-                        >
-                            <i className="far fa-heart"></i>
-                        </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
             )}
         </div>
     );
