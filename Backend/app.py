@@ -10,6 +10,8 @@ import logging
 import string
 from decimal import Decimal
 import json
+import re
+import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -20,7 +22,7 @@ CORS(app)
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = ''
-app.config['MYSQL_DB'] = 'shopping_cart'
+app.config['MYSQL_DB'] = 'shopping_cartdb'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
 mysql = MySQL(app)
@@ -261,8 +263,156 @@ def add_product():
     except Exception as e:
         return jsonify({'message': 'Failed to add product', 'error': str(e)}), 500
 # Update a product
+# Database helper functions
+def get_db_connection():
+    # Using mysql.connection from Flask-MySQL
+    return mysql.connection
+
+def check_product_stock(product_id, requested_quantity):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get product and its current stock
+        cursor.execute(
+            "SELECT id, name, price, stock_quantity FROM products WHERE id = %s", 
+            (product_id,)
+        )
+        product = cursor.fetchone()
+        
+        if not product:
+            return {"available": False, "reason": "product_not_found", "name": f"Product #{product_id}"}
+        
+        # Check if requested quantity is available
+        if product['stock_quantity'] < requested_quantity:
+            return {
+                "available": False, 
+                "reason": "insufficient_stock",
+                "name": product['name'],
+                "requested": requested_quantity,
+                "in_stock": product['stock_quantity']
+            }
+        
+        return {"available": True, "product_id": product_id}
+    except Exception as e:
+        print(f"Database error: {e}")
+        return {"available": False, "reason": "database_error"}
+    finally:
+        cursor.close()
+
+@app.route('/products/check-stock', methods=['POST'])
+def check_stock():
+    try:
+        data = request.get_json()
+        
+        if not data or 'items' not in data or not isinstance(data['items'], list):
+            return jsonify({"success": False, "message": "Invalid request format"}), 400
+        
+        items = data['items']
+        out_of_stock_items = []
+        
+        # Check each item's stock availability
+        for item in items:
+            product_id = item.get('productId')
+            quantity = item.get('quantity', 1)
+            
+            if not product_id:
+                return jsonify({"success": False, "message": "Product ID is required for each item"}), 400
+            
+            # Validate numeric values
+            try:
+                product_id = int(product_id)
+                quantity = int(quantity)
+                if quantity <= 0:
+                    return jsonify({"success": False, "message": "Quantity must be a positive number"}), 400
+            except ValueError:
+                return jsonify({"success": False, "message": "Product ID and quantity must be valid numbers"}), 400
+            
+            stock_check = check_product_stock(product_id, quantity)
+            
+            if not stock_check["available"]:
+                out_of_stock_items.append({
+                    "id": product_id,
+                    "name": stock_check.get("name", f"Product #{product_id}"),
+                    "requested": quantity,
+                    "available": stock_check.get("in_stock", 0),
+                    "reason": stock_check.get("reason", "unknown")
+                })
+        
+        # If any items are out of stock, return them in the response
+        if out_of_stock_items:
+            return jsonify({
+                "success": False,
+                "message": "Some items in your cart are out of stock",
+                "outOfStockItems": out_of_stock_items
+            }), 409
+        
+        # All items are in stock
+        return jsonify({
+            "success": True,
+            "message": "All items are in stock"
+        })
+        
+    except Exception as e:
+        print(f"Error checking stock: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while checking stock"}), 500
+
+# Optional: Create an endpoint to update stock quantity (for testing)
+@app.route('/products/update-stock', methods=['POST'])
+def update_stock():
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        
+        if not data or 'productId' not in data or 'quantity' not in data:
+            return jsonify({"success": False, "message": "Product ID and quantity are required"}), 400
+        
+        # Validate numeric values
+        try:
+            product_id = int(data['productId'])
+            quantity = int(data['quantity'])
+            if quantity < 0:
+                return jsonify({"success": False, "message": "Quantity cannot be negative"}), 400
+        except ValueError:
+            return jsonify({"success": False, "message": "Product ID and quantity must be valid numbers"}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # First check if product exists
+        cursor.execute("SELECT id FROM products WHERE id = %s", (product_id,))
+        if not cursor.fetchone():
+            return jsonify({"success": False, "message": f"Product with ID {product_id} not found"}), 404
+        
+        # Update the stock quantity
+        cursor.execute(
+            "UPDATE products SET stock_quantity = %s WHERE id = %s", 
+            (quantity, product_id)
+        )
+        
+        conn.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Stock updated for product {product_id}"
+        })
+        
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        print(f"Error updating stock: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred while updating stock: {str(e)}"}), 500
+    finally:
+        if cursor:
+            cursor.close()
+
 @app.route('/products/<int:id>', methods=['PUT', 'PATCH'])
 def update_product(id):
+    cursor = None
     try:
         cursor = mysql.connection.cursor()
 
@@ -362,84 +512,16 @@ def update_product(id):
                     )
 
         mysql.connection.commit()
-        cursor.close()
         return jsonify({'message': 'Product updated successfully'}), 200
     except Exception as e:
         return jsonify({'message': 'Failed to update product', 'error': str(e)}), 500
-    
-@app.route('/products/check-stock', methods=['POST'])
-def check_product_stock():
-    try:
-        # Check if request content type is JSON
-        if request.content_type != 'application/json':
-            return jsonify({'error': 'Content-Type must be application/json'}), 415
-        
-        # Parse JSON data
-        data = request.get_json()
-        if not data or 'items' not in data:
-            return jsonify({'error': 'Invalid request. "items" list is required'}), 400
+    finally:
+        if cursor:
+            cursor.close()
 
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        out_of_stock_items = []
-        available_items = []
-
-        for item in data['items']:
-            if 'productId' not in item or 'quantity' not in item:
-                return jsonify({'error': 'Each item must contain "productId" and "quantity"'}), 400
-
-            product_id = item['productId']
-            quantity = item['quantity']
-
-            try:
-                quantity = int(quantity)
-                if quantity <= 0:
-                    return jsonify({'error': 'Quantity must be a positive integer'}), 400
-            except ValueError:
-                return jsonify({'error': 'Quantity must be a valid integer'}), 400
-
-            # Query product stock
-            cursor.execute('SELECT id, name, stock_quantity FROM products WHERE id = %s', (product_id,))
-            product = cursor.fetchone()
-
-            if not product:
-                out_of_stock_items.append({
-                    'productId': product_id,
-                    'name': 'Unknown Product',
-                    'message': 'Product not found'
-                })
-            elif product['stock_quantity'] < quantity:
-                out_of_stock_items.append({
-                    'productId': product_id,
-                    'name': product['name'],
-                    'requestedQuantity': quantity,
-                    'availableQuantity': product['stock_quantity'],
-                    'message': 'Insufficient stock'
-                })
-            else:
-                available_items.append({
-                    'productId': product_id,
-                    'name': product['name'],
-                    'requestedQuantity': quantity,
-                    'availableQuantity': product['stock_quantity']
-                })
-
-        cursor.close()
-        conn.close()
-
-        return jsonify({
-            'success': len(out_of_stock_items) == 0,
-            'outOfStockItems': out_of_stock_items,
-            'availableItems': available_items
-        }), 200
-
-    except Exception as e:
-        return jsonify({'error': 'Internal Server Error', 'message': str(e)}), 500
-    
-# Delete a product
 @app.route('/products/<int:id>', methods=['DELETE'])
 def delete_product(id):
+    cursor = None
     try:
         cursor = mysql.connection.cursor()
 
@@ -455,7 +537,6 @@ def delete_product(id):
         # Delete the product (product_images will be deleted automatically due to ON DELETE CASCADE)
         cursor.execute('DELETE FROM products WHERE id = %s', (id,))
         mysql.connection.commit()
-        cursor.close()
 
         # Delete actual image files
         for image in images:
@@ -470,7 +551,9 @@ def delete_product(id):
         return jsonify({'message': 'Product deleted successfully'}), 200
     except Exception as e:
         return jsonify({'message': 'Failed to delete product', 'error': str(e)}), 500
-
+    finally:
+        if cursor:
+            cursor.close()
 # Category Management Routes
 @app.route('/categories', methods=['GET'])
 def get_categories():
@@ -688,101 +771,246 @@ def delete_sale(id):
     except Exception as e:
         return jsonify({'message': 'Failed to delete sale', 'error': str(e)}), 500
 
-# Place an order
-# Place an order
+def validate_phone_number(phone):
+    # Simple phone number validation (e.g., 10-15 digits)
+    return re.match(r'^\d{10,15}$', phone) is not None
+
+def generate_order_number():
+    """Generate a unique order number"""
+    timestamp = int(time.time())
+    random_suffix = secrets.token_hex(4)
+    return f"ORD-{timestamp}-{random_suffix}"
+
+def validate_phone_number(phone):
+    """Validate phone number by cleaning and checking format"""
+    if not phone:
+        return True  # Phone is optional based on your schema (can be NULL)
+    
+    # Strip spaces, dashes, parentheses, and plus signs before validation
+    clean_phone = re.sub(r'[\s\-\(\)\+]', '', phone)
+    return re.match(r'^\d{10,15}$', clean_phone) is not None
+
 @app.route('/orders', methods=['POST'])
 def place_order():
     data = request.get_json()
-
+    errors = {}
+    
     # Extract data from the request
-    name = data.get('name')
-    email = data.get('email')
-    address = data.get('address')
-    payment_method = data.get('paymentMethod')
-    items = data.get('items')
-    total_amount = data.get('totalAmount')
-
-    # Validate required fields
-    if not name or not email or not address or not items or not total_amount:
-        return jsonify({'message': 'All fields are required'}), 400
-
-    # Validate email format
-    if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
-        return jsonify({'message': 'Invalid email format'}), 400
-
-    # Validate total amount
-    try:
-        total_amount = float(total_amount)
-        if total_amount <= 0:
-            return jsonify({'message': 'Total amount must be a positive number'}), 400
-    except ValueError:
-        return jsonify({'message': 'Invalid total amount'}), 400
-
+    customer_name = data.get('customer_name')
+    customer_email = data.get('customer_email')
+    customer_phone = data.get('customer_phone')
+    shipping_address = data.get('shipping_address')
+    shipping_city = data.get('shipping_city')
+    shipping_state = data.get('shipping_state')
+    shipping_country = data.get('shipping_country')
+    shipping_zip_code = data.get('shipping_zip_code')
+    delivery_method = data.get('delivery_method')
+    delivery_instructions = data.get('delivery_instructions')
+    is_gift = data.get('is_gift', 0)
+    gift_message = data.get('gift_message')
+    subtotal = data.get('subtotal')
+    shipping_cost = data.get('shipping_cost', 0)
+    tax_amount = data.get('tax_amount', 0)
+    discount_amount = data.get('discount_amount', 0)
+    total_amount = data.get('total_amount')
+    payment_method = data.get('payment_method')
+    items = data.get('items', [])
+    coupon_id = data.get('coupon_id')
+    
+    # Check required fields based on your DB schema
+    required_fields = {
+        'customer_name': customer_name,
+        'customer_email': customer_email,
+        'shipping_address': shipping_address,
+        'shipping_city': shipping_city,
+        'shipping_state': shipping_state,
+        'shipping_country': shipping_country,
+        'shipping_zip_code': shipping_zip_code,
+        'delivery_method': delivery_method,
+        'subtotal': subtotal,
+        'shipping_cost': shipping_cost,
+        'tax_amount': tax_amount,
+        'total_amount': total_amount,
+        'payment_method': payment_method,
+        'items': items
+    }
+    
+    for field, value in required_fields.items():
+        if not value and value != 0:  # Allow 0 for numeric fields
+            errors[field] = f"{field.replace('_', ' ').title()} is required"
+    
+    # Validate email format if provided
+    if customer_email and not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', customer_email):
+        errors['customer_email'] = "Invalid email format"
+    
+    # Validate phone number format if provided
+    if customer_phone and not validate_phone_number(customer_phone):
+        errors['customer_phone'] = "Invalid phone number format. Must be 10-15 digits."
+        # Add the received phone for debugging
+        errors['received_phone'] = customer_phone
+    
+    # Validate monetary amounts
+    amount_fields = {
+        'subtotal': subtotal,
+        'shipping_cost': shipping_cost,
+        'tax_amount': tax_amount,
+        'discount_amount': discount_amount,
+        'total_amount': total_amount
+    }
+    
+    for field, value in amount_fields.items():
+        try:
+            if value is not None:
+                float_value = float(value)
+                if float_value < 0:
+                    errors[field] = f"{field.replace('_', ' ').title()} must be non-negative"
+                # Store the converted value back
+                locals()[field] = float_value
+        except (ValueError, TypeError):
+            errors[field] = f"Invalid {field.replace('_', ' ')} format, must be a number"
+    
     # Validate items
-    if not isinstance(items, list) or len(items) == 0:
-        return jsonify({'message': 'Items must be a non-empty list'}), 400
-
+    if not isinstance(items, list):
+        errors['items'] = "Items must be a list"
+    elif len(items) == 0:
+        errors['items'] = "Items list cannot be empty"
+    
+    # Return all validation errors if any
+    if errors:
+        return jsonify({'message': 'Validation failed', 'errors': errors}), 400
+    
+    # Clean phone number
+    if customer_phone:
+        customer_phone = re.sub(r'[\s\-\(\)\+]', '', customer_phone)
+    
+    conn = None
+    cursor = None
     try:
-        cursor = mysql.connection.cursor()
-
+        # Create database connection and cursor
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Generate unique order number
+        order_number = generate_order_number()
+        
+        # Convert is_gift to tinyint(1)
+        is_gift_int = 1 if is_gift else 0
+        
         # Create order record
-        cursor.execute(
-            'INSERT INTO orders (name, email, address, payment_method, total_amount) VALUES (%s, %s, %s, %s, %s)',
-            (name, email, address, payment_method, total_amount)
+        order_insert_query = """
+        INSERT INTO orders (
+            order_number, customer_name, customer_email, customer_phone, 
+            shipping_address, shipping_city, shipping_state, shipping_country, 
+            shipping_zip_code, delivery_method, delivery_instructions, is_gift, 
+            gift_message, subtotal, shipping_cost, tax_amount, discount_amount, 
+            total_amount, payment_method, coupon_id
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
         )
+        """
+        
+        cursor.execute(
+            order_insert_query,
+            (
+                order_number, customer_name, customer_email, customer_phone, 
+                shipping_address, shipping_city, shipping_state, shipping_country, 
+                shipping_zip_code, delivery_method, delivery_instructions, is_gift_int, 
+                gift_message, subtotal, shipping_cost, tax_amount, discount_amount, 
+                total_amount, payment_method, coupon_id
+            )
+        )
+        
         order_id = cursor.lastrowid
-
+        
         # Calculate real total to verify against submitted total
-        calculated_total = 0
-
+        calculated_total = subtotal + shipping_cost + tax_amount - float(discount_amount or 0)
+        
         # Process each item in the order
-        for item in items:
-            product_id = item['product']['id']
+        item_errors = []
+        for i, item in enumerate(items):
+            # Validate item structure
+            required_item_fields = ['product_id', 'quantity', 'unit_price']
+            if not all(key in item for key in required_item_fields):
+                item_errors.append(f"Item {i+1} is missing required fields")
+                continue
+                
+            product_id = item['product_id']
             quantity = item['quantity']
-            price = item['product']['price']
-
+            unit_price = float(item['unit_price'])
+            total_price = unit_price * quantity
+            attributes = item.get('attributes')
+            
             # Validate product existence and price
             cursor.execute('SELECT price FROM products WHERE id = %s', (product_id,))
             product = cursor.fetchone()
             if not product:
-                # Rollback transaction if product doesn't exist
-                mysql.connection.rollback()
-                return jsonify({'message': f'Product with ID {product_id} not found'}), 404
-
+                item_errors.append(f"Product with ID {product_id} not found")
+                continue
+            
             # Verify price matches database (prevent price manipulation)
             actual_price = float(product['price'])
-            if abs(float(price) - actual_price) > 0.01:  # Allow for small floating point differences
-                mysql.connection.rollback()
-                return jsonify({'message': 'Product price mismatch'}), 400
-
-            # Add to calculated total
-            calculated_total += actual_price * quantity
-
+            if abs(unit_price - actual_price) > 0.01:  # Allow for small floating point differences
+                item_errors.append(f"Price mismatch for product {product_id}")
+                continue
+            
             # Add order item
-            cursor.execute(
-                'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (%s, %s, %s, %s)',
-                (order_id, product_id, quantity, price)
+            item_insert_query = """
+            INSERT INTO order_items (
+                order_id, product_id, quantity, unit_price, total_price, attributes
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s
             )
-
+            """
+            
+            # Convert attributes to JSON string if present
+            attributes_json = json.dumps(attributes) if attributes else None
+            
+            cursor.execute(
+                item_insert_query,
+                (order_id, product_id, quantity, unit_price, total_price, attributes_json)
+            )
+            
+            # Optional: Update inventory (uncomment if you have inventory tracking)
+            # cursor.execute(
+            #     'UPDATE products SET inventory_count = inventory_count - %s WHERE id = %s',
+            #     (quantity, product_id)
+            # )
+        
+        if item_errors:
+            conn.rollback()
+            return jsonify({'message': 'Item validation failed', 'errors': item_errors}), 400
+        
         # Verify total amount (with small tolerance for floating point)
         if abs(calculated_total - total_amount) > 0.01:
-            mysql.connection.rollback()
-            return jsonify({'message': 'Total amount mismatch'}), 400
-
+            conn.rollback()
+            return jsonify({
+                'message': 'Total amount mismatch', 
+                'calculated': calculated_total, 
+                'submitted': total_amount
+            }), 400
+        
         # Commit the transaction
-        mysql.connection.commit()
-        cursor.close()
-
+        conn.commit()
+        
         return jsonify({
             'message': 'Order placed successfully',
-            'order_id': order_id
+            'order_id': order_id,
+            'order_number': order_number
         }), 201
-
+    
     except Exception as e:
         # Ensure transaction is rolled back on error
-        mysql.connection.rollback()
+        if conn:
+            conn.rollback()
         return jsonify({'message': 'Failed to place order', 'error': str(e)}), 500
-
+    
+    finally:
+        # Close cursor and connection in finally block to ensure they are closed
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+    
 # Coupon Management API
 @app.route('/coupons', methods=['GET'])
 def get_coupons():

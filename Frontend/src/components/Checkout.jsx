@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, Navigate, } from 'react-router-dom';
-import {CountrySelect, StateSelect, CitySelect} from "react-country-state-city";
+import {CountrySelect, StateSelect, CitySelect, PhonecodeSelect} from "react-country-state-city";
 import "react-country-state-city/dist/react-country-state-city.css";
 
     // Cart Summary Component
@@ -80,12 +80,14 @@ import "react-country-state-city/dist/react-country-state-city.css";
 
 
 // Main Checkout Component
-export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
+
+const Checkout = ({ cartCourses, totalAmount, clearCart }) => {
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
         email: '',
-        phone: '',
+        phoneCode: '+1',
+        phoneNumber: '',
         address: '',
         city: '',
         state: '',
@@ -116,12 +118,15 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
     const [stateId, setStateId] = useState(0);
     const [cityId, setCityId] = useState(0);
     
+    // API base URL from environment variable
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+    
     // Delivery options
     const deliveryOptions = useMemo(() => [
-        { id: 'pickup', name: 'Pick-up Station (Collect at your convenience)', price: 0 },
-        { id: 'door', name: 'Door Delivery (Standard, 3-5 business days)', price: 5 }
+        { id: 'standard', name: 'Standard Delivery (3-5 business days)', price: 5 },
+        { id: 'pickup', name: 'Pick-up Station (Collect at your convenience)', price: 0 }
     ], []);
-
+    
     // Load cart data
     useEffect(() => {
         const loadCartData = () => {
@@ -155,16 +160,22 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
         
         loadCartData();
     }, [cartCourses, totalAmount]);
-
+    
     // Calculate final amount
     useEffect(() => {
         let calculatedAmount = localTotalAmount;
         
+        // Free shipping for orders over $100, otherwise $10
         const shippingCost = localTotalAmount >= 100 ? 0 : 10;
+        
+        // Get delivery cost based on selected method
         const selectedDelivery = deliveryOptions.find(option => option.id === formData.deliveryMethod);
         const deliveryCost = selectedDelivery ? selectedDelivery.price : 0;
+        
+        // Calculate tax (7%)
         const taxAmount = localTotalAmount * 0.07;
         
+        // Apply coupon if available
         if (appliedCoupon) {
             if (appliedCoupon.type === 'percentage') {
                 const discountAmount = (localTotalAmount * appliedCoupon.value) / 100;
@@ -174,76 +185,115 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
             }
         }
         
+        // Ensure amount is never negative
         calculatedAmount = Math.max(0, calculatedAmount);
+        
+        // Add shipping, delivery, and tax
         calculatedAmount += shippingCost + deliveryCost + taxAmount;
         
         setFinalAmount(calculatedAmount);
     }, [localTotalAmount, appliedCoupon, formData.deliveryMethod, deliveryOptions]);
-
+    
     // Load user data
     useEffect(() => {
-        const savedUserInfo = localStorage.getItem('userCheckoutInfo');
-        if (savedUserInfo) {
-            try {
-                const parsedInfo = JSON.parse(savedUserInfo);
-                setFormData(prevData => ({
-                    ...prevData,
-                    ...parsedInfo,
-                    saveInfo: true
-                }));
-                
-                if (parsedInfo.countryId) {
-                    setCountryId(parsedInfo.countryId);
-                    if (parsedInfo.stateId) {
-                        setStateId(parsedInfo.stateId);
-                        if (parsedInfo.cityId) {
-                            setCityId(parsedInfo.cityId);
+        const loadSavedUserInfo = () => {
+            const savedUserInfo = localStorage.getItem('userCheckoutInfo');
+            if (savedUserInfo) {
+                try {
+                    const parsedInfo = JSON.parse(savedUserInfo);
+                    setFormData(prevData => ({
+                        ...prevData,
+                        ...parsedInfo,
+                        saveInfo: true
+                    }));
+                    
+                    if (parsedInfo.countryId) {
+                        setCountryId(parsedInfo.countryId);
+                        if (parsedInfo.stateId) {
+                            setStateId(parsedInfo.stateId);
+                            if (parsedInfo.cityId) {
+                                setCityId(parsedInfo.cityId);
+                            }
                         }
                     }
+                } catch (err) {
+                    console.error('Error parsing saved user info:', err);
                 }
-            } catch (err) {
-                console.error('Error parsing saved user info:', err);
             }
-        }
+        };
+        
+        loadSavedUserInfo();
     }, []);
-
+    
     const validateForm = () => {
         const newErrors = {};
         
         if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
         if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
+        
         if (!formData.email.trim()) {
             newErrors.email = 'Email is required';
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
             newErrors.email = 'Please enter a valid email address';
         }
-        if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+        
+        if (!formData.phoneNumber.trim()) {
+            newErrors.phoneNumber = 'Phone number is required';
+        } else {
+            // Remove all non-digit characters for validation
+            const cleanedPhone = formData.phoneNumber.replace(/\D/g, '');
+            if (cleanedPhone.length < 6) {
+                newErrors.phoneNumber = 'Please enter a valid phone number';
+            }
+        }
+        
         if (!formData.address.trim()) newErrors.address = 'Address is required';
-        if (!countryId) newErrors.country = 'Country is required';
-        if (!stateId) newErrors.state = 'State is required';
-        if (!cityId) newErrors.city = 'City is required';
+        if (!formData.country.trim()) newErrors.country = 'Country is required';
+        if (!formData.state.trim()) newErrors.state = 'State is required';
+        if (!formData.city.trim()) newErrors.city = 'City is required';
+        
         if (!formData.zipCode.trim()) {
             newErrors.zipCode = 'ZIP code is required';
         } else if (!/^\d{5}(-\d{4})?$/.test(formData.zipCode)) {
             newErrors.zipCode = 'Please enter a valid ZIP code';
         }
+        
         if (formData.isGift && !formData.giftMessage.trim()) {
             newErrors.giftMessage = 'Gift message is required when sending as a gift';
         }
-
+    
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
-
+    
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormData({ 
             ...formData, 
             [name]: type === 'checkbox' ? checked : value 
         });
-
+    
         if (errors[name]) {
             setErrors({ ...errors, [name]: '' });
+        }
+    };
+    
+    const handlePhoneCodeChange = (code) => {
+        setFormData({
+            ...formData,
+            phoneCode: code
+        });
+    };
+
+    const handlePhoneNumberChange = (e) => {
+        const { value } = e.target;
+        setFormData({
+            ...formData,
+            phoneNumber: value
+        });
+        
+        if (errors.phoneNumber) {
+            setErrors({ ...errors, phoneNumber: '' });
         }
     };
     
@@ -311,7 +361,7 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
         setCouponError('');
         
         try {
-            const response = await fetch('http://127.0.0.1:5000/coupons/validate', {
+            const response = await fetch(`${API_BASE_URL}/coupons/validate`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -321,17 +371,17 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                     subtotal: localTotalAmount
                 }),
             });
-
+    
             const data = await response.json();
-
+    
             if (!response.ok) {
                 throw new Error(data.message || 'Failed to validate coupon');
             }
-
+    
             if (!data.valid) {
                 throw new Error(data.message || 'Invalid coupon');
             }
-
+    
             setAppliedCoupon({
                 code: data.coupon.code,
                 type: data.coupon.discount_type,
@@ -341,7 +391,7 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                     : `$${data.coupon.discount_value} off`})`,
                 couponData: data.coupon
             });
-
+    
         } catch (err) {
             setCouponError(err.message || 'Error applying coupon. Please try again.');
         } finally {
@@ -356,7 +406,7 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
     
     const checkStock = async () => {
         try {
-            const response = await fetch('http://127.0.0.1:5000/products/check-stock', {
+            const response = await fetch(`${API_BASE_URL}/products/check-stock`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -368,33 +418,33 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                     }))
                 }),
             });
-
+    
             const data = await response.json();
-
+    
             if (!response.ok) {
                 throw new Error(data.message || 'Could not verify stock availability');
             }
-
+    
             if (data.outOfStockItems && data.outOfStockItems.length > 0) {
                 const outOfStockNames = data.outOfStockItems.map(item => item.name).join(', ');
                 throw new Error(`Some items in your cart are no longer available: ${outOfStockNames}`);
             }
-
+    
             return true;
         } catch (err) {
             setOrderError(err.message || 'Could not verify stock availability. Please try again.');
             return false;
         }
     };
-
+    
     const handleSubmit = async (e) => {
         e.preventDefault();
-
+    
         if (!validateForm()) {
             window.scrollTo(0, 0);
             return;
         }
-
+    
         if (!localCartCourses || localCartCourses.length === 0) {
             setOrderError('Your cart is empty. Please add items before checkout.');
             return;
@@ -404,11 +454,14 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
         if (!stockAvailable) {
             return;
         }
-
+    
         setIsSubmitting(true);
         setOrderError('');
-
+    
         try {
+            // Format full phone number with country code
+            const fullPhoneNumber = `${formData.phoneCode}${formData.phoneNumber.replace(/\D/g, '')}`;
+            
             if (formData.saveInfo) {
                 const userInfoToSave = { 
                     ...formData,
@@ -422,12 +475,15 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                 localStorage.removeItem('userCheckoutInfo');
             }
             
-            // const selectedDelivery = deliveryOptions.find(option => option.id === formData.deliveryMethod);
+            const selectedDelivery = deliveryOptions.find(option => option.id === formData.deliveryMethod);
+            const deliveryCost = selectedDelivery ? selectedDelivery.price : 0;
+            const shippingCost = localTotalAmount >= 100 ? 0 : 10;
+            const taxAmount = localTotalAmount * 0.07;
             
             const orderData = {
                 customer_name: `${formData.firstName} ${formData.lastName}`,
                 customer_email: formData.email,
-                customer_phone: formData.phone,
+                customer_phone: fullPhoneNumber,
                 shipping_address: formData.address,
                 shipping_city: formData.city,
                 shipping_state: formData.state,
@@ -438,8 +494,10 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                 is_gift: formData.isGift,
                 gift_message: formData.isGift ? formData.giftMessage : '',
                 subtotal: localTotalAmount,
-                shipping_cost: localTotalAmount >= 100 ? 0 : 10,
-                tax_amount: localTotalAmount * 0.07,
+                shipping_cost: shippingCost,
+                delivery_cost: deliveryCost,
+                tax_amount: taxAmount,
+                total_amount: finalAmount,
                 payment_method: formData.paymentMethod,
                 items: localCartCourses.map(item => ({
                     product_id: item.product.id,
@@ -450,23 +508,35 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                         image: item.product.image
                     }
                 })),
-                coupon_code: appliedCoupon?.code || null
+                coupon: appliedCoupon ? {
+                    code: appliedCoupon.code,
+                    discount_type: appliedCoupon.type,
+                    discount_value: appliedCoupon.value
+                } : null
             };
-
-            const response = await fetch('http://127.0.0.1:5000/orders', {
+    
+            const response = await fetch(`${API_BASE_URL}/orders`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(orderData),
             });
-
+    
             const data = await response.json();
-
+    
             if (!response.ok) {
-                throw new Error(data.message || 'Failed to place order');
+                if (response.status === 400) {
+                    throw new Error(data.message || 'Invalid order data. Please check your information.');
+                } else if (response.status === 409) {
+                    throw new Error('Some items in your cart have changed. Please refresh your cart.');
+                } else if (response.status === 422) {
+                    throw new Error('Payment processing failed. Please check your payment details.');
+                } else {
+                    throw new Error(data.message || 'Failed to place order');
+                }
             }
-
+    
             setOrderId(data.order_number);
             setOrderPlaced(true);
             
@@ -485,12 +555,10 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
             setIsSubmitting(false);
         }
     };
-
+    
     if (orderPlaced) {
-        return <OrderConfirmation orderId={orderId} email={formData.email} />;
+        return <OrderConfirmation orderId={orderId} email={formData.email} totalAmount={finalAmount} />;
     }
-
-
     return (
         <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
             <div className="max-w-6xl mx-auto">
@@ -565,21 +633,28 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                                                     <p className="text-red-500 text-xs mt-1">{errors.email}</p>
                                                 )}
                                             </div>
-                                            
                                             <div>
-                                                <label htmlFor="phone" className="block mb-1 text-sm font-medium">
+                                                <label htmlFor="phoneNumber" className="block mb-1 text-sm font-medium">
                                                     Phone Number
                                                 </label>
-                                                <input
-                                                    type="tel"
-                                                    id="phone"
-                                                    name="phone"
-                                                    value={formData.phone}
-                                                    onChange={handleInputChange}
-                                                    className={`w-full p-2 border rounded-md ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
-                                                />
-                                                {errors.phone && (
-                                                    <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                                                <div className="flex">
+                                                    <PhonecodeSelect
+                                                        value={formData.phoneCode}
+                                                        onChange={handlePhoneCodeChange}
+                                                        className="w-24 p-2 border rounded-l-md border-gray-300"
+                                                    />
+                                                    <input
+                                                        type="tel"
+                                                        id="phoneNumber"
+                                                        name="phoneNumber"
+                                                        value={formData.phoneNumber}
+                                                        onChange={handlePhoneNumberChange}
+                                                        className={`flex-1 p-2 border rounded-r-md ${errors.phoneNumber ? 'border-red-500' : 'border-gray-300'}`}
+                                                        placeholder="Phone number"
+                                                    />
+                                                </div>
+                                                {errors.phoneNumber && (
+                                                    <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>
                                                 )}
                                             </div>
                                         </div>
@@ -747,7 +822,6 @@ export const Checkout = ({ cartCourses = [], totalAmount = 0, clearCart }) => {
                                                 )}
                                             </div>
                                         </div>
-                                        
                                         <h2 className="text-xl font-semibold mb-4">Payment Method</h2>
                                         <div className="mb-6">
                                             <div className="mb-2">
