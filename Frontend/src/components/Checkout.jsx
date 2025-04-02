@@ -279,12 +279,14 @@ const Checkout = ({ cartCourses, totalAmount, clearCart }) => {
     };
     
     const handlePhoneCodeChange = (code) => {
+        // Make sure we're storing the string value, not an object
+        const codeValue = typeof code === 'object' ? code.value || '+1' : code;
+        
         setFormData({
             ...formData,
-            phoneCode: code
+            phoneCode: codeValue
         });
     };
-
     const handlePhoneNumberChange = (e) => {
         const { value } = e.target;
         setFormData({
@@ -459,8 +461,13 @@ const Checkout = ({ cartCourses, totalAmount, clearCart }) => {
         setOrderError('');
     
         try {
+            // Fix: Ensure phoneCode is a string value, not an object
+            const phoneCodeValue = typeof formData.phoneCode === 'object' ? 
+                formData.phoneCode.value || '+1' : // If it's an object, try to get the value property
+                formData.phoneCode; // Otherwise use it directly
+                
             // Format full phone number with country code
-            const fullPhoneNumber = `${formData.phoneCode}${formData.phoneNumber.replace(/\D/g, '')}`;
+            const fullPhoneNumber = `${phoneCodeValue}${formData.phoneNumber.replace(/\D/g, '')}`;
             
             if (formData.saveInfo) {
                 const userInfoToSave = { 
@@ -555,7 +562,6 @@ const Checkout = ({ cartCourses, totalAmount, clearCart }) => {
             setIsSubmitting(false);
         }
     };
-    
     if (orderPlaced) {
         return <OrderConfirmation orderId={orderId} email={formData.email} totalAmount={finalAmount} />;
     }

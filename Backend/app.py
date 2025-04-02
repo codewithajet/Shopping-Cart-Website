@@ -771,246 +771,7 @@ def delete_sale(id):
     except Exception as e:
         return jsonify({'message': 'Failed to delete sale', 'error': str(e)}), 500
 
-def validate_phone_number(phone):
-    # Simple phone number validation (e.g., 10-15 digits)
-    return re.match(r'^\d{10,15}$', phone) is not None
 
-def generate_order_number():
-    """Generate a unique order number"""
-    timestamp = int(time.time())
-    random_suffix = secrets.token_hex(4)
-    return f"ORD-{timestamp}-{random_suffix}"
-
-def validate_phone_number(phone):
-    """Validate phone number by cleaning and checking format"""
-    if not phone:
-        return True  # Phone is optional based on your schema (can be NULL)
-    
-    # Strip spaces, dashes, parentheses, and plus signs before validation
-    clean_phone = re.sub(r'[\s\-\(\)\+]', '', phone)
-    return re.match(r'^\d{10,15}$', clean_phone) is not None
-
-@app.route('/orders', methods=['POST'])
-def place_order():
-    data = request.get_json()
-    errors = {}
-    
-    # Extract data from the request
-    customer_name = data.get('customer_name')
-    customer_email = data.get('customer_email')
-    customer_phone = data.get('customer_phone')
-    shipping_address = data.get('shipping_address')
-    shipping_city = data.get('shipping_city')
-    shipping_state = data.get('shipping_state')
-    shipping_country = data.get('shipping_country')
-    shipping_zip_code = data.get('shipping_zip_code')
-    delivery_method = data.get('delivery_method')
-    delivery_instructions = data.get('delivery_instructions')
-    is_gift = data.get('is_gift', 0)
-    gift_message = data.get('gift_message')
-    subtotal = data.get('subtotal')
-    shipping_cost = data.get('shipping_cost', 0)
-    tax_amount = data.get('tax_amount', 0)
-    discount_amount = data.get('discount_amount', 0)
-    total_amount = data.get('total_amount')
-    payment_method = data.get('payment_method')
-    items = data.get('items', [])
-    coupon_id = data.get('coupon_id')
-    
-    # Check required fields based on your DB schema
-    required_fields = {
-        'customer_name': customer_name,
-        'customer_email': customer_email,
-        'shipping_address': shipping_address,
-        'shipping_city': shipping_city,
-        'shipping_state': shipping_state,
-        'shipping_country': shipping_country,
-        'shipping_zip_code': shipping_zip_code,
-        'delivery_method': delivery_method,
-        'subtotal': subtotal,
-        'shipping_cost': shipping_cost,
-        'tax_amount': tax_amount,
-        'total_amount': total_amount,
-        'payment_method': payment_method,
-        'items': items
-    }
-    
-    for field, value in required_fields.items():
-        if not value and value != 0:  # Allow 0 for numeric fields
-            errors[field] = f"{field.replace('_', ' ').title()} is required"
-    
-    # Validate email format if provided
-    if customer_email and not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', customer_email):
-        errors['customer_email'] = "Invalid email format"
-    
-    # Validate phone number format if provided
-    if customer_phone and not validate_phone_number(customer_phone):
-        errors['customer_phone'] = "Invalid phone number format. Must be 10-15 digits."
-        # Add the received phone for debugging
-        errors['received_phone'] = customer_phone
-    
-    # Validate monetary amounts
-    amount_fields = {
-        'subtotal': subtotal,
-        'shipping_cost': shipping_cost,
-        'tax_amount': tax_amount,
-        'discount_amount': discount_amount,
-        'total_amount': total_amount
-    }
-    
-    for field, value in amount_fields.items():
-        try:
-            if value is not None:
-                float_value = float(value)
-                if float_value < 0:
-                    errors[field] = f"{field.replace('_', ' ').title()} must be non-negative"
-                # Store the converted value back
-                locals()[field] = float_value
-        except (ValueError, TypeError):
-            errors[field] = f"Invalid {field.replace('_', ' ')} format, must be a number"
-    
-    # Validate items
-    if not isinstance(items, list):
-        errors['items'] = "Items must be a list"
-    elif len(items) == 0:
-        errors['items'] = "Items list cannot be empty"
-    
-    # Return all validation errors if any
-    if errors:
-        return jsonify({'message': 'Validation failed', 'errors': errors}), 400
-    
-    # Clean phone number
-    if customer_phone:
-        customer_phone = re.sub(r'[\s\-\(\)\+]', '', customer_phone)
-    
-    conn = None
-    cursor = None
-    try:
-        # Create database connection and cursor
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        
-        # Generate unique order number
-        order_number = generate_order_number()
-        
-        # Convert is_gift to tinyint(1)
-        is_gift_int = 1 if is_gift else 0
-        
-        # Create order record
-        order_insert_query = """
-        INSERT INTO orders (
-            order_number, customer_name, customer_email, customer_phone, 
-            shipping_address, shipping_city, shipping_state, shipping_country, 
-            shipping_zip_code, delivery_method, delivery_instructions, is_gift, 
-            gift_message, subtotal, shipping_cost, tax_amount, discount_amount, 
-            total_amount, payment_method, coupon_id
-        ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-        )
-        """
-        
-        cursor.execute(
-            order_insert_query,
-            (
-                order_number, customer_name, customer_email, customer_phone, 
-                shipping_address, shipping_city, shipping_state, shipping_country, 
-                shipping_zip_code, delivery_method, delivery_instructions, is_gift_int, 
-                gift_message, subtotal, shipping_cost, tax_amount, discount_amount, 
-                total_amount, payment_method, coupon_id
-            )
-        )
-        
-        order_id = cursor.lastrowid
-        
-        # Calculate real total to verify against submitted total
-        calculated_total = subtotal + shipping_cost + tax_amount - float(discount_amount or 0)
-        
-        # Process each item in the order
-        item_errors = []
-        for i, item in enumerate(items):
-            # Validate item structure
-            required_item_fields = ['product_id', 'quantity', 'unit_price']
-            if not all(key in item for key in required_item_fields):
-                item_errors.append(f"Item {i+1} is missing required fields")
-                continue
-                
-            product_id = item['product_id']
-            quantity = item['quantity']
-            unit_price = float(item['unit_price'])
-            total_price = unit_price * quantity
-            attributes = item.get('attributes')
-            
-            # Validate product existence and price
-            cursor.execute('SELECT price FROM products WHERE id = %s', (product_id,))
-            product = cursor.fetchone()
-            if not product:
-                item_errors.append(f"Product with ID {product_id} not found")
-                continue
-            
-            # Verify price matches database (prevent price manipulation)
-            actual_price = float(product['price'])
-            if abs(unit_price - actual_price) > 0.01:  # Allow for small floating point differences
-                item_errors.append(f"Price mismatch for product {product_id}")
-                continue
-            
-            # Add order item
-            item_insert_query = """
-            INSERT INTO order_items (
-                order_id, product_id, quantity, unit_price, total_price, attributes
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s
-            )
-            """
-            
-            # Convert attributes to JSON string if present
-            attributes_json = json.dumps(attributes) if attributes else None
-            
-            cursor.execute(
-                item_insert_query,
-                (order_id, product_id, quantity, unit_price, total_price, attributes_json)
-            )
-            
-            # Optional: Update inventory (uncomment if you have inventory tracking)
-            # cursor.execute(
-            #     'UPDATE products SET inventory_count = inventory_count - %s WHERE id = %s',
-            #     (quantity, product_id)
-            # )
-        
-        if item_errors:
-            conn.rollback()
-            return jsonify({'message': 'Item validation failed', 'errors': item_errors}), 400
-        
-        # Verify total amount (with small tolerance for floating point)
-        if abs(calculated_total - total_amount) > 0.01:
-            conn.rollback()
-            return jsonify({
-                'message': 'Total amount mismatch', 
-                'calculated': calculated_total, 
-                'submitted': total_amount
-            }), 400
-        
-        # Commit the transaction
-        conn.commit()
-        
-        return jsonify({
-            'message': 'Order placed successfully',
-            'order_id': order_id,
-            'order_number': order_number
-        }), 201
-    
-    except Exception as e:
-        # Ensure transaction is rolled back on error
-        if conn:
-            conn.rollback()
-        return jsonify({'message': 'Failed to place order', 'error': str(e)}), 500
-    
-    finally:
-        # Close cursor and connection in finally block to ensure they are closed
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-    
 # Coupon Management API
 @app.route('/coupons', methods=['GET'])
 def get_coupons():
@@ -1364,6 +1125,24 @@ def validate_coupon():
         return jsonify({'message': 'Failed to validate coupon', 'error': str(e)}), 500
 
 # Order Management API
+def generate_order_number():
+    """Generate a unique order number"""
+    timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    return f"ORD-{timestamp}"
+
+def calculate_discount(subtotal, coupon):
+    """Calculate discount amount based on coupon"""
+    discount_amount = 0
+    
+    if coupon['discount_type'] == 'percentage':
+        discount_amount = subtotal * (float(coupon['discount_value']) / 100)
+    elif coupon['discount_type'] == 'fixed':
+        discount_amount = float(coupon['discount_value'])
+        
+    # Don't allow discount to exceed order value
+    return min(discount_amount, subtotal)
+
+# Order Management API
 @app.route('/orders', methods=['GET'])
 def get_orders():
     try:
@@ -1400,7 +1179,7 @@ def get_orders():
         query += ' ORDER BY created_at DESC'
         
         # Execute query
-        cursor.execute(query, params)
+        cursor.execute(query, tuple(params))
         orders = cursor.fetchall()
         
         # Get order items for each order
@@ -1422,9 +1201,10 @@ def get_orders():
                 cursor.execute('SELECT code, discount_type, discount_value FROM coupons WHERE id = %s', (order['coupon_id'],))
                 order['coupon'] = cursor.fetchone()
         
-        cursor.close()
         return jsonify(orders), 200
     except Exception as e:
+        # Log the error
+        app.logger.error(f"Error fetching orders: {str(e)}")
         return jsonify({'message': 'Failed to fetch orders', 'error': str(e)}), 500
 
 @app.route('/orders/<string:order_number>', methods=['GET'])
@@ -1457,13 +1237,15 @@ def get_order_by_number(order_number):
             cursor.execute('SELECT code, discount_type, discount_value FROM coupons WHERE id = %s', (order['coupon_id'],))
             order['coupon'] = cursor.fetchone()
             
-        cursor.close()
         return jsonify(order), 200
     except Exception as e:
+        app.logger.error(f"Error fetching order {order_number}: {str(e)}")
         return jsonify({'message': 'Failed to fetch order', 'error': str(e)}), 500
 
 @app.route('/orders', methods=['POST'])
 def create_order():
+    conn = None
+    cursor = None
     try:
         data = request.get_json()
         
@@ -1506,8 +1288,10 @@ def create_order():
                 return jsonify({'message': 'Price values cannot be negative'}), 400
         except ValueError:
             return jsonify({'message': 'Invalid price format'}), 400
-            
-        cursor = mysql.connection.cursor()
+
+        # Get a cursor - use with connection pooling
+        conn = mysql.connection
+        cursor = conn.cursor()
         
         # Check coupon if provided
         coupon_id = None
@@ -1580,7 +1364,7 @@ def create_order():
                 item['unit_price'], total_price, attributes_json
             ))
             
-            # Update product stock quantity (optional, depends on your business logic)
+            # Update product stock quantity
             cursor.execute('''
                 UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - %s)
                 WHERE id = %s
@@ -1598,20 +1382,36 @@ def create_order():
             order_id, total_amount, data['payment_method'], transaction_id, payment_status
         ))
         
-        mysql.connection.commit()
-        cursor.close()
+        # Commit changes
+        conn.commit()
         
-        return jsonify({
+        # Prepare response data
+        response_data = {
             'message': 'Order created successfully',
             'order_id': order_id,
             'order_number': order_number,
             'total_amount': float(total_amount)
-        }), 201
+        }
+        
+        # Return successful response
+        return jsonify(response_data), 201
+        
     except Exception as e:
+        # Log the error
+        app.logger.error(f"Error creating order: {str(e)}")
+        
+        # Rollback transaction if there's an error
+        if conn:
+            try:
+                conn.rollback()
+            except Exception as rollback_error:
+                app.logger.error(f"Error during rollback: {str(rollback_error)}")
+            
         return jsonify({'message': 'Failed to create order', 'error': str(e)}), 500
 
 @app.route('/orders/<string:order_number>/status', methods=['PATCH'])
 def update_order_status(order_number):
+    conn = None
     try:
         data = request.get_json()
         
@@ -1624,7 +1424,8 @@ def update_order_status(order_number):
         if new_status not in valid_statuses:
             return jsonify({'message': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'}), 400
             
-        cursor = mysql.connection.cursor()
+        conn = mysql.connection
+        cursor = conn.cursor()
         
         # Check if order exists
         cursor.execute('SELECT id FROM orders WHERE order_number = %s', (order_number,))
@@ -1635,15 +1436,21 @@ def update_order_status(order_number):
             
         # Update order status
         cursor.execute('UPDATE orders SET order_status = %s WHERE id = %s', (new_status, order['id']))
-        mysql.connection.commit()
-        cursor.close()
+        conn.commit()
         
         return jsonify({'message': 'Order status updated successfully'}), 200
     except Exception as e:
+        app.logger.error(f"Error updating order status for {order_number}: {str(e)}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception as rollback_error:
+                app.logger.error(f"Error during rollback: {str(rollback_error)}")
         return jsonify({'message': 'Failed to update order status', 'error': str(e)}), 500
 
 @app.route('/orders/<string:order_number>/payment', methods=['POST'])
 def update_payment(order_number):
+    conn = None
     try:
         data = request.get_json()
         
@@ -1666,7 +1473,8 @@ def update_payment(order_number):
         if data['status'] not in valid_statuses:
             return jsonify({'message': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'}), 400
             
-        cursor = mysql.connection.cursor()
+        conn = mysql.connection
+        cursor = conn.cursor()
         
         # Check if order exists
         cursor.execute('SELECT id, total_amount FROM orders WHERE order_number = %s', (order_number,))
@@ -1704,14 +1512,36 @@ def update_payment(order_number):
         elif payment_status == 'refunded':
             payment_status = 'refunded'
             
-     
         cursor.execute('UPDATE orders SET payment_status = %s WHERE id = %s', (payment_status, order['id']))
         
-        mysql.connection.commit()
-        cursor.close()
+        conn.commit()
         
-        return jsonify({'message': 'Payment processed successfully', 'payment_status': payment_status}), 200
+        return jsonify({'message': 'Payment updated successfully'}), 200
+        
     except Exception as e:
-        return jsonify({'message': 'Failed to process payment', 'error': str(e)}), 500
+        app.logger.error(f"Error updating payment for order {order_number}: {str(e)}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception as rollback_error:
+                app.logger.error(f"Error during rollback: {str(rollback_error)}")
+        return jsonify({'message': 'Failed to update payment', 'error': str(e)}), 500
+
+# Add CORS support
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS')
+    return response
+
+# Handle OPTIONS requests for CORS preflight
+@app.route('/orders', methods=['OPTIONS'])
+@app.route('/orders/<string:order_number>', methods=['OPTIONS'])
+@app.route('/orders/<string:order_number>/status', methods=['OPTIONS'])
+@app.route('/orders/<string:order_number>/payment', methods=['OPTIONS'])
+def handle_options_request(order_number=None):
+    return jsonify({}), 200
+
 if __name__ == '__main__':
     app.run(debug=True)
