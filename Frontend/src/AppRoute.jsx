@@ -11,6 +11,8 @@ import SalesManagement from './Dashboard/SalesManagement';
 import RoleManagement from './Dashboard/RoleManagement';
 import Report from './Dashboard/Report';
 import Checkout from './components/Checkout';
+import OrderManagement from './Dashboard/OrderMangement';
+import OrderDataFetcher from './Dashboard/OrderDataFetcher';
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
@@ -51,6 +53,7 @@ const App = () => {
           <Route path="sale" element={<SalesManagement />} />
           <Route path="role" element={<RoleManagement />} />
           <Route path="report" element={<Report />} />
+          <Route path="orders" element={<OrderDataFetcher />} />
         </Route>
         <Route path="checkout" element={<Checkout />} />
         {/* Redirect to Login if Route Not Found */}

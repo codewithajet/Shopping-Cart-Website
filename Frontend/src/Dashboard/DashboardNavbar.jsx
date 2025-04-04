@@ -1,7 +1,20 @@
-import { Bell, Menu, Search, Settings, HelpCircle } from 'lucide-react';
-import React from 'react';
+import { Bell, Menu, Search, Settings, HelpCircle, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
 
 const DashboardNavbar = ({ onMenuClick }) => {
+    // State to control tooltips
+    const [activeTooltip, setActiveTooltip] = useState(null);
+    
+    // Show tooltip handler
+    const showTooltip = (id) => {
+        setActiveTooltip(id);
+    };
+    
+    // Hide tooltip handler
+    const hideTooltip = () => {
+        setActiveTooltip(null);
+    };
+
     return (
         <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -28,18 +41,70 @@ const DashboardNavbar = ({ onMenuClick }) => {
             </div>
             
             <div className="flex items-center gap-4">
-                <button className="relative p-2 rounded-full hover:bg-gray-100 transition-colors">
-                <Bell size={22} className="text-gray-500" />
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#ff6b6b] rounded-full text-white text-xs flex items-center justify-center">3</span>
-                </button>
+                <div className="relative">
+                    <button 
+                        className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
+                        onMouseEnter={() => showTooltip('notifications')}
+                        onMouseLeave={hideTooltip}
+                    >
+                        <Bell size={22} className="text-gray-500" />
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#ff6b6b] rounded-full text-white text-xs flex items-center justify-center">3</span>
+                    </button>
+                    {activeTooltip === 'notifications' && (
+                        <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
+                            Notifications
+                            <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                        </div>
+                    )}
+                </div>
                 
-                <button className="p-2 rounded-full hover:bg-gray-100 transition-colors hidden md:block">
-                <HelpCircle size={22} className="text-gray-500" />
-                </button>
+                <div className="relative hidden md:block">
+                    <button 
+                        className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                        onMouseEnter={() => showTooltip('help')}
+                        onMouseLeave={hideTooltip}
+                    >
+                        <HelpCircle size={22} className="text-gray-500" />
+                    </button>
+                    {activeTooltip === 'help' && (
+                        <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
+                            Help Center
+                            <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                        </div>
+                    )}
+                </div>
                 
-                <button className="p-2 rounded-full hover:bg-gray-100 transition-colors hidden md:block">
-                <Settings size={22} className="text-gray-500" />
-                </button>
+                <div className="relative hidden md:block">
+                    <button 
+                        className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                        onMouseEnter={() => showTooltip('settings')}
+                        onMouseLeave={hideTooltip}
+                    >
+                        <Settings size={22} className="text-gray-500" />
+                    </button>
+                    {activeTooltip === 'settings' && (
+                        <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
+                            Settings
+                            <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                        </div>
+                    )}
+                </div>
+                
+                <div className="relative hidden md:block">
+                    <button 
+                        className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-red-500"
+                        onMouseEnter={() => showTooltip('logout')}
+                        onMouseLeave={hideTooltip}
+                    >
+                        <LogOut size={22} />
+                    </button>
+                    {activeTooltip === 'logout' && (
+                        <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
+                            Logout
+                            <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                        </div>
+                    )}
+                </div>
                 
                 <div className="h-10 flex items-center gap-2 pl-3 pr-1 py-1 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer">
                 <span className="text-sm font-medium text-gray-700 hidden md:block">John Doe</span>

@@ -125,7 +125,6 @@ def login():
     except Exception as e:
         return jsonify({'message': 'An error occurred. Please try again.', 'error': str(e)}), 500
     # Products Routes
-# Get all products
 @app.route('/products', methods=['GET'])
 def get_products():
     try:
@@ -557,51 +556,136 @@ def delete_product(id):
 # Category Management Routes
 @app.route('/categories', methods=['GET'])
 def get_categories():
+    """
+    Get all categories from the database.
+    Returns a JSON list of all categories or an error message.
+    """
     try:
         cursor = mysql.connection.cursor()
         cursor.execute('SELECT * FROM categories')
         categories = cursor.fetchall()
         cursor.close()
-        return jsonify(categories), 200
+        
+        if not categories:
+            return jsonify({'message': 'No categories found', 'data': []}), 200
+            
+        return jsonify({'message': 'Categories retrieved successfully', 'data': categories}), 200
     except Exception as e:
-        return jsonify({'message': 'Failed to fetch categories', 'error': str(e)}), 500
+        return jsonify({'message': 'Failed to fetch categories', 'error': str(e), 'success': False}), 500
 
 @app.route('/categories', methods=['POST'])
 def add_category():
-    data = request.get_json()
-    name = data.get('name')
-
-    if not name:
-        return jsonify({'message': 'Category name is required'}), 400
-
+    """
+    Add a new category to the database.
+    Requires a JSON object with 'name' and optional 'description' fields.
+    Returns the new category ID or an error message.
+    """
     try:
+        data = request.get_json()
+        if data is None:
+            return jsonify({'message': 'Invalid JSON data', 'success': False}), 400
+            
+        name = data.get('name')
+        description = data.get('description', '')  # Default to empty string if not provided
+        
+        if not name or not name.strip():
+            return jsonify({'message': 'Category name is required and cannot be empty', 'success': False}), 400
+            
         cursor = mysql.connection.cursor()
         cursor.execute(
-            'INSERT INTO categories (name) VALUES (%s)',
-            (name,)
+            'INSERT INTO categories (name, description) VALUES (%s, %s)',
+            (name.strip(), description.strip() if description else '')
         )
         mysql.connection.commit()
         category_id = cursor.lastrowid
         cursor.close()
-        return jsonify({'message': 'Category added', 'id': category_id}), 201
+        
+        return jsonify({
+            'message': 'Category added successfully', 
+            'id': category_id, 
+            'success': True
+        }), 201
     except Exception as e:
-        return jsonify({'message': 'Failed to add category', 'error': str(e)}), 500
+        return jsonify({'message': 'Failed to add category', 'error': str(e), 'success': False}), 500
+
+@app.route('/categories/<int:id>', methods=['PUT'])
+def update_category(id):
+    """
+    Update an existing category by ID.
+    Requires a JSON object with 'name' and optional 'description' fields.
+    Returns a success message or an error message.
+    """
+    try:
+        data = request.get_json()
+        if data is None:
+            return jsonify({'message': 'Invalid JSON data', 'success': False}), 400
+        
+        # Get values from request, check if they exist in the data
+        name = data.get('name')
+        description = data.get('description')
+        
+        if not name or not name.strip():
+            return jsonify({'message': 'Category name is required and cannot be empty', 'success': False}), 400
+            
+        cursor = mysql.connection.cursor()
+        # Check if category exists
+        cursor.execute('SELECT id FROM categories WHERE id = %s', (id,))
+        if not cursor.fetchone():
+            cursor.close()
+            return jsonify({'message': 'Category not found', 'success': False}), 404
+        
+        # Update both name and description
+        cursor.execute(
+            'UPDATE categories SET name = %s, description = %s WHERE id = %s',
+            (name.strip(), description.strip() if description else '', id)
+        )
+        mysql.connection.commit()
+        cursor.close()
+        
+        return jsonify({'message': 'Category updated successfully', 'success': True}), 200
+    except Exception as e:
+        return jsonify({'message': 'Failed to update category', 'error': str(e), 'success': False}), 500
 
 @app.route('/categories/<int:id>', methods=['DELETE'])
 def delete_category(id):
+    """
+    Delete a category by ID.
+    Returns a success message or an error message.
+    """
     try:
         cursor = mysql.connection.cursor()
         # Check if category exists
         cursor.execute('SELECT id FROM categories WHERE id = %s', (id,))
         if not cursor.fetchone():
-            return jsonify({'message': 'Category not found'}), 404
+            cursor.close()
+            return jsonify({'message': 'Category not found', 'success': False}), 404
         
         cursor.execute('DELETE FROM categories WHERE id = %s', (id,))
         mysql.connection.commit()
         cursor.close()
-        return jsonify({'message': 'Category deleted'}), 200
+        
+        return jsonify({'message': 'Category deleted successfully', 'success': True}), 200
     except Exception as e:
-        return jsonify({'message': 'Failed to delete category', 'error': str(e)}), 500
+        return jsonify({'message': 'Failed to delete category', 'error': str(e), 'success': False}), 500
+
+@app.route('/categories/<int:id>', methods=['GET'])
+def get_category(id):
+    """
+    Get a specific category by ID.
+    Returns the category data or an error message.
+    """
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute('SELECT * FROM categories WHERE id = %s', (id,))
+        category = cursor.fetchone()
+        cursor.close()
+        
+        if not category:
+            return jsonify({'message': 'Category not found', 'success': False}), 404
+            
+        return jsonify({'message': 'Category retrieved successfully', 'data': category, 'success': True}), 200
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch category', 'error': str(e), 'success': False}), 500
   
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -1184,7 +1268,12 @@ def get_orders():
         
         # Get order items for each order
         for order in orders:
-            cursor.execute('SELECT * FROM order_items WHERE order_id = %s', (order['id'],))
+            cursor.execute('''
+                SELECT oi.*, p.name as product_name 
+                FROM order_items oi
+                LEFT JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id = %s
+            ''', (order['id'],))
             order['items'] = cursor.fetchall()
             
             # Parse JSON attributes
@@ -1206,7 +1295,7 @@ def get_orders():
         # Log the error
         app.logger.error(f"Error fetching orders: {str(e)}")
         return jsonify({'message': 'Failed to fetch orders', 'error': str(e)}), 500
-
+    
 @app.route('/orders/<string:order_number>', methods=['GET'])
 def get_order_by_number(order_number):
     try:
@@ -1219,8 +1308,13 @@ def get_order_by_number(order_number):
         if not order:
             return jsonify({'message': 'Order not found'}), 404
             
-        # Get order items
-        cursor.execute('SELECT * FROM order_items WHERE order_id = %s', (order['id'],))
+        # Get order items with product names
+        cursor.execute('''
+            SELECT oi.*, p.name as product_name 
+            FROM order_items oi
+            LEFT JOIN products p ON oi.product_id = p.id
+            WHERE oi.order_id = %s
+        ''', (order['id'],))
         order['items'] = cursor.fetchall()
         
         # Parse JSON attributes
@@ -1355,12 +1449,23 @@ def create_order():
             # Calculate total price for item
             total_price = float(item['unit_price']) * int(item['quantity'])
             
+            # Get product name
+            product_name = None
+            if 'product_name' in item:
+                product_name = item['product_name']
+            else:
+                # Try to fetch product name from database
+                cursor.execute('SELECT name FROM products WHERE id = %s', (item['product_id'],))
+                product_result = cursor.fetchone()
+                if product_result:
+                    product_name = product_result['name']
+            
             cursor.execute('''
                 INSERT INTO order_items (
-                    order_id, product_id, quantity, unit_price, total_price, attributes
-                ) VALUES (%s, %s, %s, %s, %s, %s)
+                    order_id, product_id, product_name, quantity, unit_price, total_price, attributes
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (
-                order_id, item['product_id'], item['quantity'], 
+                order_id, item['product_id'], product_name, item['quantity'], 
                 item['unit_price'], total_price, attributes_json
             ))
             
@@ -1408,7 +1513,7 @@ def create_order():
                 app.logger.error(f"Error during rollback: {str(rollback_error)}")
             
         return jsonify({'message': 'Failed to create order', 'error': str(e)}), 500
-
+    
 @app.route('/orders/<string:order_number>/status', methods=['PATCH'])
 def update_order_status(order_number):
     conn = None

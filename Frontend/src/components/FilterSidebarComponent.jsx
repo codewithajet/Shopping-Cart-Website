@@ -28,8 +28,11 @@ function FilterSidebarComponent({ products, applyFilters }) {
                 if (!response.ok) {
                     throw new Error('Failed to fetch categories');
                 }
-                const data = await response.json();
-                setCategories(data);
+                const responseData = await response.json();
+                
+                // Access the 'data' property from the response
+                const categoriesData = responseData.data || [];
+                setCategories(categoriesData);
                 setCategoriesError('');
             } catch (err) {
                 console.error('Error fetching categories:', err);
