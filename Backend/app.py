@@ -319,6 +319,44 @@ def check_product_stock(product_id, requested_quantity):
         cursor.close()
 
 # API endpoint to check stock availability
+# Update a product
+# Database helper functions
+def get_db_connection():
+    # Using mysql.connection from Flask-MySQL
+    return mysql.connection
+
+def check_product_stock(product_id, requested_quantity):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get product and its current stock
+        cursor.execute(
+            "SELECT id, name, price, stock_quantity FROM products WHERE id = %s", 
+            (product_id,)
+        )
+        product = cursor.fetchone()
+        
+        if not product:
+            return {"available": False, "reason": "product_not_found", "name": f"Product #{product_id}"}
+        
+        # Check if requested quantity is available
+        if product['stock_quantity'] < requested_quantity:
+            return {
+                "available": False, 
+                "reason": "insufficient_stock",
+                "name": product['name'],
+                "requested": requested_quantity,
+                "in_stock": product['stock_quantity']
+            }
+        
+        return {"available": True, "product_id": product_id}
+    except Exception as e:
+        print(f"Database error: {e}")
+        return {"available": False, "reason": "database_error"}
+    finally:
+        cursor.close()
+
 @app.route('/products/check-stock', methods=['POST'])
 def check_stock():
     try:
@@ -376,7 +414,7 @@ def check_stock():
         print(f"Error checking stock: {str(e)}")
         return jsonify({"success": False, "message": "An error occurred while checking stock"}), 500
 
-# Update stock quantity (for testing)
+# Optional: Create an endpoint to update stock quantity (for testing)
 @app.route('/products/update-stock', methods=['POST'])
 def update_stock():
     conn = None
@@ -428,8 +466,7 @@ def update_stock():
     finally:
         if cursor:
             cursor.close()
-
-# Update a product
+#Update a product
 @app.route('/products/<int:id>', methods=['PUT', 'PATCH'])
 def update_product(id):
     cursor = None
