@@ -25,21 +25,27 @@ app.config['MYSQL_PASSWORD'] = ''
 app.config['MYSQL_DB'] = 'shopping_cartdb'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
-mysql = MySQL(app)
-
-# Image upload configuration
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
+# Configure file uploads
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static/uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
 
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+# Ensure upload directory exists
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Initialize MySQL
+mysql = MySQL(app)
+
+# Helper function to check if file extension is allowed
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Additional route to serve uploaded files directly
+@app.route('/static/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     logging.basicConfig(level=logging.ERROR)
-
-def allowed_file(filename):
-    """Check if the file extension is allowed"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
     # Helper Functions
 def generate_order_number():
@@ -124,7 +130,9 @@ def login():
         return jsonify({'message': 'Invalid credentials'}), 401
     except Exception as e:
         return jsonify({'message': 'An error occurred. Please try again.', 'error': str(e)}), 500
-    # Products Routes
+
+   
+# Get all products with filters
 @app.route('/products', methods=['GET'])
 def get_products():
     try:
@@ -159,7 +167,8 @@ def get_products():
         # Fetch images for each product
         for product in products:
             cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (product['id'],))
-            product['images'] = [row['image_url'] for row in cursor.fetchall()]
+            images = cursor.fetchall()
+            product['images'] = [row['image_url'] for row in images]
 
             # Get category name
             cursor.execute('SELECT name FROM categories WHERE id = %s', (product['category_id'],))
@@ -170,6 +179,7 @@ def get_products():
         return jsonify(products), 200
     except Exception as e:
         return jsonify({'message': 'Failed to fetch products', 'error': str(e)}), 500
+
 # Get a single product by ID
 @app.route('/products/<int:id>', methods=['GET'])
 def get_product(id):
@@ -183,7 +193,8 @@ def get_product(id):
 
         # Get product images
         cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (id,))
-        product['images'] = [row['image_url'] for row in cursor.fetchall()]
+        images = cursor.fetchall()
+        product['images'] = [row['image_url'] for row in images]
 
         # Get category information
         cursor.execute('SELECT name FROM categories WHERE id = %s', (product['category_id'],))
@@ -194,6 +205,7 @@ def get_product(id):
         return jsonify(product), 200
     except Exception as e:
         return jsonify({'message': 'Failed to fetch product', 'error': str(e)}), 500
+
 # Add a new product
 @app.route('/products', methods=['POST'])
 def add_product():
@@ -204,9 +216,11 @@ def add_product():
         description = request.form.get('description')
         stock_quantity = request.form.get('stock_quantity', 0)
         images = request.files.getlist('images')
+
         # Validate required fields
         if not name or not price or not category_id or not description:
             return jsonify({'message': 'Name, price, category_id, and description are required'}), 400
+        
         # Validate price
         try:
             price = float(price)
@@ -228,12 +242,14 @@ def add_product():
         cursor.execute('SELECT id FROM categories WHERE id = %s', (category_id,))
         if not cursor.fetchone():
             return jsonify({'message': 'Category not found'}), 400
+        
         # Insert product
         cursor.execute(
             'INSERT INTO products (name, price, category_id, description, stock_quantity) VALUES (%s, %s, %s, %s, %s)',
             (name, price, category_id, description, stock_quantity)
         )
         product_id = cursor.lastrowid
+        
         # Save images with secure naming
         image_urls = []
         for i, image in enumerate(images):
@@ -241,9 +257,14 @@ def add_product():
                 # Generate a unique filename
                 ext = image.filename.rsplit('.', 1)[1].lower()
                 filename = f"{uuid.uuid4().hex}.{ext}"
+                
+                # Create subdirectories if they don't exist
+                if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                    os.makedirs(app.config['UPLOAD_FOLDER'])
+                
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
                 image.save(filepath)
+                
                 # Store relative path in DB
                 image_url = f"/static/uploads/{filename}"
                 is_primary = (i == 0)  # First image is primary
@@ -252,8 +273,10 @@ def add_product():
                     (product_id, image_url, is_primary)
                 )
                 image_urls.append(image_url)
+        
         mysql.connection.commit()
         cursor.close()
+        
         return jsonify({
             'message': 'Product added successfully', 
             'id': product_id, 
@@ -261,12 +284,8 @@ def add_product():
         }), 201
     except Exception as e:
         return jsonify({'message': 'Failed to add product', 'error': str(e)}), 500
-# Update a product
-# Database helper functions
-def get_db_connection():
-    # Using mysql.connection from Flask-MySQL
-    return mysql.connection
 
+# Check product stock availability
 def check_product_stock(product_id, requested_quantity):
     try:
         conn = get_db_connection()
@@ -299,6 +318,7 @@ def check_product_stock(product_id, requested_quantity):
     finally:
         cursor.close()
 
+# API endpoint to check stock availability
 @app.route('/products/check-stock', methods=['POST'])
 def check_stock():
     try:
@@ -356,7 +376,7 @@ def check_stock():
         print(f"Error checking stock: {str(e)}")
         return jsonify({"success": False, "message": "An error occurred while checking stock"}), 500
 
-# Optional: Create an endpoint to update stock quantity (for testing)
+# Update stock quantity (for testing)
 @app.route('/products/update-stock', methods=['POST'])
 def update_stock():
     conn = None
@@ -409,6 +429,7 @@ def update_stock():
         if cursor:
             cursor.close()
 
+# Update a product
 @app.route('/products/<int:id>', methods=['PUT', 'PATCH'])
 def update_product(id):
     cursor = None
@@ -488,11 +509,14 @@ def update_product(id):
                 # Delete physical files
                 for image in old_images:
                     try:
-                        file_path = os.path.join('static', image['image_url'].lstrip('/static/'))
+                        # Extract filename from URL
+                        filename = os.path.basename(image['image_url'])
+                        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                         if os.path.exists(file_path):
                             os.remove(file_path)
-                    except Exception:
+                    except Exception as e:
                         # Continue even if file deletion fails
+                        print(f"Failed to delete file: {e}")
                         pass
 
             # Add new images
@@ -500,9 +524,14 @@ def update_product(id):
                 if image and allowed_file(image.filename):
                     ext = image.filename.rsplit('.', 1)[1].lower()
                     filename = f"{uuid.uuid4().hex}.{ext}"
+                    
+                    # Ensure directory exists
+                    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                        os.makedirs(app.config['UPLOAD_FOLDER'])
+                    
                     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
                     image.save(filepath)
+                    
                     image_url = f"/static/uploads/{filename}"
                     is_primary = (i == 0 and data.get('replace_images') == 'true')
                     cursor.execute(
@@ -518,6 +547,7 @@ def update_product(id):
         if cursor:
             cursor.close()
 
+# Delete a product
 @app.route('/products/<int:id>', methods=['DELETE'])
 def delete_product(id):
     cursor = None
@@ -540,11 +570,14 @@ def delete_product(id):
         # Delete actual image files
         for image in images:
             try:
-                file_path = os.path.join('static', image['image_url'].lstrip('/static/'))
+                # Extract filename from URL
+                filename = os.path.basename(image['image_url'])
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 if os.path.exists(file_path):
                     os.remove(file_path)
-            except Exception:
+            except Exception as e:
                 # Continue even if file deletion fails
+                print(f"Failed to delete file: {e}")
                 pass
 
         return jsonify({'message': 'Product deleted successfully'}), 200
@@ -553,6 +586,8 @@ def delete_product(id):
     finally:
         if cursor:
             cursor.close()
+
+
 # Category Management Routes
 @app.route('/categories', methods=['GET'])
 def get_categories():
@@ -687,9 +722,6 @@ def get_category(id):
     except Exception as e:
         return jsonify({'message': 'Failed to fetch category', 'error': str(e), 'success': False}), 500
   
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # User Management Routes
 @app.route('/users', methods=['GET'])

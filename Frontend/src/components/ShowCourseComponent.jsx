@@ -5,6 +5,8 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
     const [selectedProduct, setSelectedProduct] = useState(null);
     // Add state for quantity in popup
     const [quantity, setQuantity] = useState(1);
+    // Add state to track image loading errors
+    const [imageErrors, setImageErrors] = useState({});
     
     // Function to open the popup with the selected product
     const openProductPopup = (product) => {
@@ -23,6 +25,14 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
         setQuantity(prevQuantity => Math.max(1, prevQuantity + change));
     };
     
+    // Function to handle image errors
+    const handleImageError = (productId, imageIndex) => {
+        setImageErrors(prev => ({
+            ...prev,
+            [`${productId}-${imageIndex}`]: true
+        }));
+    };
+    
     return (
         <div className="product-list">
             {filterCourseFunction.length === 0 ? (
@@ -36,17 +46,34 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                         key={product.id}
                         onClick={() => openProductPopup(product)}
                     >
-                        {/* Display product images */}
+                        {/* Display product images with fallback */}
                         <div className="product-images">
-                            {/* {product.images && product.images.map((image, index) => (
+                            {product.images && product.images.length > 0 ? (
+                                product.images.map((image, index) => (
+                                    imageErrors[`${product.id}-${index}`] ? (
+                                        <img
+                                            key={index}
+                                            src="/src/assets/avatar.png"
+                                            alt={`${product.name} fallback`}
+                                            className="product-image"
+                                        />
+                                    ) : (
+                                        <img
+                                            key={index}
+                                            src={`http://localhost:5000${image.startsWith('/') ? '' : '/'}${image}`}
+                                            alt={`${product.name} ${index + 1}`}
+                                            className="product-image"
+                                            onError={() => handleImageError(product.id, index)}
+                                        />
+                                    )
+                                ))
+                            ) : (
                                 <img
-                                    key={index}
-                                    src={`http://localhost:5000/${image}`}
-                                    alt={`${product.name} ${index + 1}`}
+                                    src="/src/assets/avatar.png"
+                                    alt={`${product.name} fallback`}
                                     className="product-image"
                                 />
-                            ))} */}
-                            <img src="/src/assets/avatar.png" alt="" />
+                            )}
                         </div>
                         <h2>{product.name}</h2>
                         <p className="product-price">Price: ${product.price}</p>
@@ -86,11 +113,24 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     </button>
                                 </div>
                                 
-                                <img 
-                                    src={selectedProduct.image || "/src/assets/avatar.png"} 
-                                    alt={selectedProduct.name} 
-                                    className="popup-product-image" 
-                                />
+                                {/* Corrected image display in popup */}
+                                {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                                    <img 
+                                        src={`http://localhost:5000${selectedProduct.images[0].startsWith('/') ? '' : '/'}${selectedProduct.images[0]}`}
+                                        alt={selectedProduct.name}
+                                        className="popup-product-image"
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = "/src/assets/avatar.png";
+                                        }}
+                                    />
+                                ) : (
+                                    <img 
+                                        src="/src/assets/avatar.png"
+                                        alt={selectedProduct.name}
+                                        className="popup-product-image"
+                                    />
+                                )}
                             </div>
                             
                             {/* Content Section */}

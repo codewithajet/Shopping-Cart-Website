@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Filter, Package, Grid, List, X, ChevronLeft, ChevronRight, Save, Upload, AlertCircle } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Filter, Package, Grid, List, X, ChevronLeft, ChevronRight, Save, Upload, AlertCircle, User } from 'lucide-react';
 
 // Product Management Dashboard Main Component
 const ProductManagement = () => {
@@ -213,6 +213,40 @@ const ProductManagement = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // Product Image component with avatar fallback
+  const ProductImage = ({ product, className }) => {
+    const [imageError, setImageError] = useState(false);
+    
+    const getImageUrl = () => {
+      if (imageError || !product.images || !Array.isArray(product.images) || product.images.length === 0) {
+        return null;
+      }
+      
+      const imagePath = product.images[0].startsWith('/') 
+        ? product.images[0].substring(1) 
+        : product.images[0];
+        
+      return `${API_BASE_URL}/${imagePath}`;
+    };
+    
+    return (
+      <>
+        {!imageError && getImageUrl() ? (
+          <img 
+            src={getImageUrl()}
+            alt={product.name || 'Product image'}
+            className={className}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className={`${className} flex items-center justify-center bg-gray-200`}>
+            <User size={className.includes('w-12') ? 24 : 48} className="text-gray-400" />
+          </div>
+        )}
+      </>
+    );
+  };
+
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -225,16 +259,7 @@ const ProductManagement = () => {
   const ProductCard = ({ product }) => (
     <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
       <div className="relative h-48 bg-gray-100">
-        <img 
-          src={product.images && product.images.length > 0 
-            ? `${API_BASE_URL}${product.images[0]}` 
-            : '/api/placeholder/800/600'} 
-          alt={product.name}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            e.target.src = '/api/placeholder/800/600';
-          }}
-        />
+        <ProductImage product={product} className="w-full h-full object-cover" />
         <div className="absolute top-2 right-2 flex space-x-1">
           <button 
             onClick={() => handleEditProduct(product)}
@@ -269,16 +294,7 @@ const ProductManagement = () => {
     <tr className="border-b border-gray-200 hover:bg-gray-50">
       <td className="py-3 px-4 flex items-center">
         <div className="w-12 h-12 mr-3 flex-shrink-0">
-          <img 
-            src={product.images && product.images.length > 0 
-              ? `${API_BASE_URL}${product.images[0]}` 
-              : '/api/placeholder/800/600'} 
-            alt={product.name}
-            className="w-full h-full object-cover rounded"
-            onError={(e) => {
-              e.target.src = '/api/placeholder/800/600';
-            }}
-          />
+          <ProductImage product={product} className="w-full h-full object-cover rounded" />
         </div>
         <span className="font-medium text-gray-800">{product.name}</span>
       </td>
@@ -311,6 +327,7 @@ const ProductManagement = () => {
     });
     const [imageFiles, setImageFiles] = useState([]);
     const [previewUrls, setPreviewUrls] = useState(product.images || []);
+    const [previewErrors, setPreviewErrors] = useState([]);
     
     const handleChange = (e) => {
       const { name, value } = e.target;
@@ -328,6 +345,7 @@ const ProductManagement = () => {
         // Create preview URLs
         const newPreviewUrls = filesArray.map(file => URL.createObjectURL(file));
         setPreviewUrls(newPreviewUrls);
+        setPreviewErrors(new Array(newPreviewUrls.length).fill(false));
       }
     };
     
@@ -352,7 +370,14 @@ const ProductManagement = () => {
         // Create preview URLs
         const newPreviewUrls = filesArray.map(file => URL.createObjectURL(file));
         setPreviewUrls(newPreviewUrls);
+        setPreviewErrors(new Array(newPreviewUrls.length).fill(false));
       }
+    };
+
+    const handlePreviewError = (index) => {
+      const newPreviewErrors = [...previewErrors];
+      newPreviewErrors[index] = true;
+      setPreviewErrors(newPreviewErrors);
     };
     
     return (
@@ -485,14 +510,18 @@ const ProductManagement = () => {
                       <div className="grid grid-cols-3 gap-4">
                         {previewUrls.map((url, index) => (
                           <div key={index} className="relative h-24 rounded overflow-hidden">
-                            <img 
-                              src={url.startsWith('blob:') ? url : `${API_BASE_URL}${url}`}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.src = '/api/placeholder/200/150';
-                              }}
-                            />
+                            {previewErrors[index] ? (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                                <User size={32} className="text-gray-400" />
+                              </div>
+                            ) : (
+                              <img 
+                                src={url.startsWith('blob:') ? url : `${API_BASE_URL}${url}`}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={() => handlePreviewError(index)}
+                              />
+                            )}
                           </div>
                         ))}
                       </div>
