@@ -131,7 +131,7 @@ def login():
     except Exception as e:
         return jsonify({'message': 'An error occurred. Please try again.', 'error': str(e)}), 500
 
-   
+
 # Get all products with filters
 @app.route('/products', methods=['GET'])
 def get_products():
@@ -285,7 +285,7 @@ def add_product():
     except Exception as e:
         return jsonify({'message': 'Failed to add product', 'error': str(e)}), 500
 
-# Check product stock availability
+# Check product stock availability]
 def check_product_stock(product_id, requested_quantity):
     try:
         conn = get_db_connection()
@@ -1471,6 +1471,8 @@ def create_order():
             if not coupon['is_active']:
                 return jsonify({'message': 'Coupon is not active'}), 400
                 
+            # Correct datetime usage
+            import datetime
             current_time = datetime.datetime.now()
             if current_time < coupon['start_date'] or current_time > coupon['end_date']:
                 return jsonify({'message': 'Coupon is expired or not yet active'}), 400
@@ -1622,6 +1624,7 @@ def update_order_status(order_number):
                 app.logger.error(f"Error during rollback: {str(rollback_error)}")
         return jsonify({'message': 'Failed to update order status', 'error': str(e)}), 500
 
+    
 @app.route('/orders/<string:order_number>/payment', methods=['POST'])
 def update_payment(order_number):
     conn = None
@@ -1715,6 +1718,382 @@ def after_request(response):
 @app.route('/orders/<string:order_number>/status', methods=['OPTIONS'])
 @app.route('/orders/<string:order_number>/payment', methods=['OPTIONS'])
 def handle_options_request(order_number=None):
+    return jsonify({}), 200
+
+# Delivery status endpoint
+@app.route('/deliveries', methods=['GET'])
+def get_deliveries():
+    try:
+        cursor = mysql.connection.cursor()
+        
+        # Get query parameters for filtering
+        order_number = request.args.get('order_number')
+        delivery_status = request.args.get('status')
+        carrier = request.args.get('carrier')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        
+        # Base query
+        query = '''
+            SELECT d.*, o.order_number, o.customer_name, o.customer_email
+            FROM deliveries d
+            LEFT JOIN orders o ON d.order_id = o.id
+            WHERE 1=1
+        '''
+        params = []
+        
+        # Apply filters if provided
+        if order_number:
+            query += ' AND o.order_number = %s'
+            params.append(order_number)
+            
+        if delivery_status:
+            query += ' AND d.status = %s'
+            params.append(delivery_status)
+            
+        if carrier:
+            query += ' AND d.carrier = %s'
+            params.append(carrier)
+            
+        if date_from:
+            query += ' AND d.created_at >= %s'
+            params.append(date_from)
+            
+        if date_to:
+            query += ' AND d.created_at <= %s'
+            params.append(date_to)
+            
+        # Add sorting
+        query += ' ORDER BY d.created_at DESC'
+        
+        # Execute query
+        cursor.execute(query, tuple(params))
+        deliveries = cursor.fetchall()
+        
+        # Get tracking events for each delivery
+        for delivery in deliveries:
+            cursor.execute('''
+                SELECT * FROM delivery_tracking_events
+                WHERE delivery_id = %s
+                ORDER BY timestamp DESC
+            ''', (delivery['id'],))
+            delivery['tracking_events'] = cursor.fetchall()
+        
+        return jsonify(deliveries), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching deliveries: {str(e)}")
+        return jsonify({'message': 'Failed to fetch deliveries', 'error': str(e)}), 500
+
+@app.route('/deliveries/<int:delivery_id>', methods=['GET'])
+def get_delivery(delivery_id):
+    try:
+        cursor = mysql.connection.cursor()
+        
+        # Get delivery details
+        cursor.execute('''
+            SELECT d.*, o.order_number, o.customer_name, o.customer_email
+            FROM deliveries d
+            LEFT JOIN orders o ON d.order_id = o.id
+            WHERE d.id = %s
+        ''', (delivery_id,))
+        delivery = cursor.fetchone()
+        
+        if not delivery:
+            return jsonify({'message': 'Delivery not found'}), 404
+            
+        # Get tracking events
+        cursor.execute('''
+            SELECT * FROM delivery_tracking_events
+            WHERE delivery_id = %s
+            ORDER BY timestamp DESC
+        ''', (delivery_id,))
+        delivery['tracking_events'] = cursor.fetchall()
+        
+        return jsonify(delivery), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching delivery {delivery_id}: {str(e)}")
+        return jsonify({'message': 'Failed to fetch delivery', 'error': str(e)}), 500
+
+@app.route('/orders/<string:order_number>/delivery', methods=['POST'])
+def create_delivery(order_number):
+    conn = None
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['carrier', 'tracking_number']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'message': f'{field} is required'}), 400
+        
+        conn = mysql.connection
+        cursor = conn.cursor()
+        
+        # Check if order exists
+        cursor.execute('SELECT id FROM orders WHERE order_number = %s', (order_number,))
+        order = cursor.fetchone()
+        
+        if not order:
+            return jsonify({'message': 'Order not found'}), 404
+        
+        # Check if delivery already exists for this order
+        cursor.execute('SELECT id FROM deliveries WHERE order_id = %s', (order['id'],))
+        existing_delivery = cursor.fetchone()
+        
+        if existing_delivery:
+            return jsonify({'message': 'Delivery already exists for this order'}), 400
+            
+        # Create delivery record
+        cursor.execute('''
+            INSERT INTO deliveries (
+                order_id, carrier, tracking_number, estimated_delivery_date, 
+                status, notes, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', (
+            order['id'], data['carrier'], data['tracking_number'],
+            data.get('estimated_delivery_date'), 
+            data.get('status', 'pending'), 
+            data.get('notes'),
+            datetime.now()  # Fixed: using datetime.now() after correct import
+        ))
+        
+        delivery_id = cursor.lastrowid
+        
+        # Create initial tracking event
+        cursor.execute('''
+            INSERT INTO delivery_tracking_events (
+                delivery_id, status, location, timestamp, details
+            ) VALUES (%s, %s, %s, %s, %s)
+        ''', (
+            delivery_id, 'created', data.get('location', 'Warehouse'), 
+            datetime.now(),  # Fixed: using datetime.now() after correct import
+            'Shipment created'
+        ))
+        
+        # Update order status to shipped
+        cursor.execute('UPDATE orders SET order_status = %s WHERE id = %s', ('shipped', order['id']))
+        
+        conn.commit()
+        
+        return jsonify({'message': 'Delivery created successfully', 'delivery_id': delivery_id}), 201
+    except Exception as e:
+        app.logger.error(f"Error creating delivery for order {order_number}: {str(e)}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception as rollback_error:
+                app.logger.error(f"Error during rollback: {str(rollback_error)}")
+        return jsonify({'message': 'Failed to create delivery', 'error': str(e)}), 500
+    
+@app.route('/deliveries/<int:delivery_id>/events', methods=['POST'])
+def add_tracking_event(delivery_id):
+    conn = None
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['status', 'location']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'message': f'{field} is required'}), 400
+                
+        conn = mysql.connection
+        cursor = conn.cursor()
+        
+        # Check if delivery exists
+        cursor.execute('SELECT id, order_id FROM deliveries WHERE id = %s', (delivery_id,))
+        delivery = cursor.fetchone()
+        
+        if not delivery:
+            return jsonify({'message': 'Delivery not found'}), 404
+            
+        # Add tracking event
+        cursor.execute('''
+            INSERT INTO delivery_tracking_events (
+                delivery_id, status, location, timestamp, details
+            ) VALUES (%s, %s, %s, %s, %s)
+        ''', (
+            delivery_id, data['status'], data['location'],
+            data.get('timestamp', datetime.now()),  # Fixed: using datetime.now() after correct import
+            data.get('details')
+        ))
+        
+        # Update delivery status
+        cursor.execute('UPDATE deliveries SET status = %s WHERE id = %s', (data['status'], delivery_id))
+        
+        # Update order status if delivered
+        if data['status'] == 'delivered':
+            cursor.execute('UPDATE orders SET order_status = %s WHERE id = %s', ('delivered', delivery['order_id']))
+        
+        conn.commit()
+        
+        return jsonify({'message': 'Tracking event added successfully'}), 201
+    except Exception as e:
+        app.logger.error(f"Error adding tracking event for delivery {delivery_id}: {str(e)}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception as rollback_error:
+                app.logger.error(f"Error during rollback: {str(rollback_error)}")
+        return jsonify({'message': 'Failed to add tracking event', 'error': str(e)}), 500
+
+@app.route('/deliveries/<int:delivery_id>', methods=['PATCH'])
+def update_delivery(delivery_id):
+    conn = None
+    try:
+        data = request.get_json()
+        
+        # Ensure at least one field to update
+        updateable_fields = ['carrier', 'tracking_number', 'estimated_delivery_date', 'status', 'notes']
+        
+        has_updates = False
+        for field in updateable_fields:
+            if field in data:
+                has_updates = True
+                break
+                
+        if not has_updates:
+            return jsonify({'message': 'No updates provided'}), 400
+        
+        conn = mysql.connection
+        cursor = conn.cursor()
+        
+        # Check if delivery exists
+        cursor.execute('SELECT id FROM deliveries WHERE id = %s', (delivery_id,))
+        delivery = cursor.fetchone()
+        
+        if not delivery:
+            return jsonify({'message': 'Delivery not found'}), 404
+            
+        # Build update query
+        query = 'UPDATE deliveries SET '
+        params = []
+        
+        for field in updateable_fields:
+            if field in data:
+                query += f"{field} = %s, "
+                params.append(data[field])
+                
+        # Add updated_at timestamp
+        query += "updated_at = %s "
+        params.append(datetime.now())  # Fixed: using datetime.now() after correct import
+        
+        # Finalize query
+        query += "WHERE id = %s"
+        params.append(delivery_id)
+        
+        # Execute update
+        cursor.execute(query, tuple(params))
+        
+        conn.commit()
+        
+        return jsonify({'message': 'Delivery updated successfully'}), 200
+    except Exception as e:
+        app.logger.error(f"Error updating delivery {delivery_id}: {str(e)}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception as rollback_error:
+                app.logger.error(f"Error during rollback: {str(rollback_error)}")
+        return jsonify({'message': 'Failed to update delivery', 'error': str(e)}), 500
+    
+# Customer-facing tracking endpoint
+@app.route('/track/<string:tracking_number>', methods=['GET'])
+def track_delivery(tracking_number):
+    try:
+        cursor = mysql.connection.cursor()
+        
+        # Get delivery details
+        cursor.execute('''
+            SELECT d.id, d.carrier, d.tracking_number, d.estimated_delivery_date, d.status,
+                   o.order_number, o.customer_name
+            FROM deliveries d
+            LEFT JOIN orders o ON d.order_id = o.id
+            WHERE d.tracking_number = %s
+        ''', (tracking_number,))
+        delivery = cursor.fetchone()
+        
+        if not delivery:
+            return jsonify({'message': 'Tracking number not found'}), 404
+            
+        # Get tracking events
+        cursor.execute('''
+            SELECT status, location, timestamp, details
+            FROM delivery_tracking_events
+            WHERE delivery_id = %s
+            ORDER BY timestamp DESC
+        ''', (delivery['id'],))
+        tracking_events = cursor.fetchall()
+        
+        # Build response
+        result = {
+            'tracking_number': delivery['tracking_number'],
+            'carrier': delivery['carrier'],
+            'status': delivery['status'],
+            'estimated_delivery_date': delivery['estimated_delivery_date'],
+            'order_number': delivery['order_number'],
+            'customer_name': delivery['customer_name'],
+            'tracking_history': tracking_events
+        }
+        
+        return jsonify(result), 200
+    except Exception as e:
+        app.logger.error(f"Error tracking delivery {tracking_number}: {str(e)}")
+        return jsonify({'message': 'Failed to track delivery', 'error': str(e)}), 500
+
+# Define schema for the necessary tables
+def create_delivery_tables():
+    """
+    Function to create necessary tables for the delivery management system
+    """
+    try:
+        cursor = mysql.connection.cursor()
+        
+        # Create deliveries table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS deliveries (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                order_id INT NOT NULL,
+                carrier VARCHAR(100) NOT NULL,
+                tracking_number VARCHAR(100) NOT NULL,
+                estimated_delivery_date DATE,
+                status VARCHAR(50) NOT NULL DEFAULT 'pending',
+                notes TEXT,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME,
+                FOREIGN KEY (order_id) REFERENCES orders(id),
+                INDEX (tracking_number),
+                INDEX (status)
+            )
+        ''')
+        
+        # Create delivery tracking events table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS delivery_tracking_events (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                delivery_id INT NOT NULL,
+                status VARCHAR(50) NOT NULL,
+                location VARCHAR(255),
+                timestamp DATETIME NOT NULL,
+                details TEXT,
+                FOREIGN KEY (delivery_id) REFERENCES deliveries(id),
+                INDEX (timestamp)
+            )
+        ''')
+        
+        mysql.connection.commit()
+        print("Delivery tables created successfully")
+        
+    except Exception as e:
+        print(f"Error creating delivery tables: {str(e)}")
+
+# Add CORS support for new endpoints
+@app.route('/deliveries', methods=['OPTIONS'])
+@app.route('/deliveries/<int:delivery_id>', methods=['OPTIONS'])
+@app.route('/deliveries/<int:delivery_id>/events', methods=['OPTIONS'])
+@app.route('/orders/<string:order_number>/delivery', methods=['OPTIONS'])
+@app.route('/track/<string:tracking_number>', methods=['OPTIONS'])
+def handle_delivery_options_request(delivery_id=None, order_number=None, tracking_number=None):
     return jsonify({}), 200
 
 if __name__ == '__main__':

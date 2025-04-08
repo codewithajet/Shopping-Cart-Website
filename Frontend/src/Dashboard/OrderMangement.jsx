@@ -1,32 +1,34 @@
-    import React, { useState, useEffect, useRef } from 'react';
-    import { Search, Filter, Package, Truck, Check, X, RefreshCw, DollarSign, Calendar, ChevronDown, ChevronUp, User, Phone, MapPin, Clock, AlertCircle, FileText, Sliders } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { Search, Filter, Package, Truck, Check, X, RefreshCw, DollarSign, Calendar, ChevronDown, ChevronUp, User, Phone, MapPin, Clock, AlertCircle, FileText, Sliders } from 'lucide-react';
 
-    const OrderManagement = ({
-        orders = [],
-        loading = false,
-        error = null,
-        fetchOrders,
-        updateOrderStatus,
-        filterStatus = 'all',
-        setFilterStatus,
-        searchTerm = '',
-        setSearchTerm,
-        dateRange = { from: '', to: '' },
-        setDateRange
-    }) => {
-        const [expandedOrder, setExpandedOrder] = useState(null);
-        const [isFilterOpen, setIsFilterOpen] = useState(false);
-        const [searchField, setSearchField] = useState('all');
-        const [paymentFilter, setPaymentFilter] = useState('all');
-        const [priceRange, setPriceRange] = useState({ min: '', max: '' });
-        const [advancedFiltersApplied, setAdvancedFiltersApplied] = useState(false);
-        const [searchHistory, setSearchHistory] = useState([]);
-        const [setShowSearchHistory] = useState(false);
-        const [isSearching, setIsSearching] = useState(false);
-        const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
-        const searchTimeoutRef = useRef(null);
-        const searchInputRef = useRef(null);
-        const searchHistoryRef = useRef(null);
+const OrderManagement = ({
+    orders = [],
+    loading = false,
+    error = null,
+    fetchOrders,
+    updateOrderStatus,
+    filterStatus = 'all',
+    setFilterStatus,
+    searchTerm = '',
+    setSearchTerm,
+    dateRange = { from: '', to: '' },
+    setDateRange
+}) => {
+    const [isUpdating, setIsUpdating] = useState(null); // Will store the order number being updated
+    const [expandedOrder, setExpandedOrder] = useState(null);
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [searchField, setSearchField] = useState('all');
+    const [paymentFilter, setPaymentFilter] = useState('all');
+    const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+    const [advancedFiltersApplied, setAdvancedFiltersApplied] = useState(false);
+    const [searchHistory, setSearchHistory] = useState([]);
+    const [setShowSearchHistory] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+    const searchTimeoutRef = useRef(null);
+    const searchInputRef = useRef(null);
+    const searchHistoryRef = useRef(null);
 
     // New effect to visually indicate when advanced filters are applied
     useEffect(() => {
@@ -92,16 +94,6 @@
         return () => clearTimeout(timer);
         }
     }, [searchTerm]);
-    useEffect(() => {
-        const hasAdvancedFilters = 
-        dateRange.from !== '' || 
-        dateRange.to !== '' || 
-        paymentFilter !== 'all' || 
-        priceRange.min !== '' || 
-        priceRange.max !== '';
-        
-        setAdvancedFiltersApplied(hasAdvancedFilters);
-    }, [dateRange, paymentFilter, priceRange]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -113,13 +105,6 @@
         fetchOrders();
         setShowSearchHistory(false);
     };
-
-    // const handleSearchHistorySelect = (term) => {
-    //     setLocalSearchTerm(term);
-    //     setSearchTerm(term);
-    //     fetchOrders();
-    //     setShowSearchHistory(false);
-    // };
 
     const clearSearch = () => {
         setLocalSearchTerm('');
@@ -206,6 +191,50 @@
         if (priceRange.min !== '') count++;
         if (priceRange.max !== '') count++;
         return count;
+    };
+
+    const updateOrder = async (orderNumber, status) => {
+            try {
+            setIsUpdating(orderNumber);
+            
+            if (updateOrderStatus) {
+                await updateOrderStatus(orderNumber, status);
+            } else {
+                // Updated to match your endpoint and request format
+                const response = await axios.patch(`/orders/${orderNumber}/status`, { 
+                status: status 
+                });
+                
+                if (response.status !== 200) {
+                throw new Error('Failed to update order status');
+                }
+            }
+            
+            // Success notification
+            // You could add a toast system or a simple message
+            
+            fetchOrders();
+            } catch (error) {
+            console.error('Error updating order status:', error);
+            // Show error notification
+            } finally {
+            setIsUpdating(null);
+            }
+        };
+
+    const updateOrderItem = async (itemId, updates) => {
+        try {
+            const response = await axios.patch(`/delivery-items/${itemId}`, updates);
+            if (response.status === 200) {
+                // Optionally, show a success message and refetch orders
+                fetchOrders();
+            } else {
+                // Optionally, show an error message
+                console.error('Failed to update order item');
+            }
+        } catch (error) {
+            console.error('Error updating order item:', error);
+        }
     };
 
     return (
@@ -651,15 +680,20 @@
                             </button>
                             <select
                                 value={order.order_status}
-                                onChange={(e) => updateOrderStatus(order.order_number, e.target.value)}
+                                onChange={(e) => updateOrder(order.order_number, e.target.value)}
                                 className="mt-1 block text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                            >
+                                // Disable select while updating to prevent multiple submissions
+                                disabled={isUpdating === order.order_number}
+                                >
                                 <option value="pending">Pending</option>
                                 <option value="processing">Processing</option>
                                 <option value="shipped">Shipped</option>
                                 <option value="delivered">Delivered</option>
                                 <option value="cancelled">Cancelled</option>
-                            </select>
+                                </select>
+                                {isUpdating === order.order_number && (
+                                <span className="ml-2 text-xs text-blue-600">Updating...</span>
+                                )}
                             </td>
                         </tr>
                         {expandedOrder === order.order_number && (
@@ -739,6 +773,9 @@
                                             <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Total
                                             </th>
+                                            <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Actions
+                                            </th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
@@ -757,11 +794,25 @@
                                                 <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
                                                     {formatCurrency(item.total_price || 0)}
                                                 </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                                    <button
+                                                        onClick={() => updateOrderItem(item.id, { quantity: item.quantity + 1 })}
+                                                        className="text-blue-600 hover:text-blue-900 mr-4"
+                                                    >
+                                                        Increase
+                                                    </button>
+                                                    <button
+                                                        onClick={() => updateOrderItem(item.id, { quantity: item.quantity - 1 })}
+                                                        className="text-red-600 hover:text-red-900"
+                                                    >
+                                                        Decrease
+                                                    </button>
+                                                </td>
                                                 </tr>
                                             ))
                                             ) : (
                                             <tr>
-                                                <td colSpan="4" className="px-4 py-3 text-sm text-gray-500 text-center">
+                                                <td colSpan="5" className="px-4 py-3 text-sm text-gray-500 text-center">
                                                 No items found for this order
                                                 </td>
                                             </tr>
@@ -887,6 +938,6 @@
         </div>
         </div>
     );
-    };
+};
 
-    export default OrderManagement;
+export default OrderManagement;

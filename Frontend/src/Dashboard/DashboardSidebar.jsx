@@ -12,6 +12,7 @@ const DashboardSidebar = () => {
         { path: "/dashboard/products", label: "Products", icon: <ShoppingBag size={20} /> },
         { path: "/dashboard/orders", label: "Orders", icon: <ShoppingCart size={20} /> },
         { path: "/dashboard/users", label: "Users", icon: <Users size={20} /> },
+        { path: "/dashboard/delivery", label: "Delivery", icon: <Tag size={20} /> },
         { path: "/dashboard/sale", label: "Sale", icon: <Tag size={20} /> },
         { path: "/dashboard/brands", label: "Brands", icon: <Award size={20} /> },
         { path: "/dashboard/role", label: "Role", icon: <UserCheck size={20} /> },
