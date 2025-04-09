@@ -1704,6 +1704,84 @@ def update_payment(order_number):
                 app.logger.error(f"Error during rollback: {str(rollback_error)}")
         return jsonify({'message': 'Failed to update payment', 'error': str(e)}), 500
 
+@app.route('/orders/<string:order_number>/items/<int:item_id>/status', methods=['PATCH'])
+def update_order_item_status(order_number, item_id):
+    conn = None
+    try:
+        data = request.get_json()
+        
+        if 'status' not in data:
+            return jsonify({'message': 'Item status is required'}), 400
+            
+        new_status = data['status']
+        valid_statuses = ['pending', 'processing', 'shipped', 'delivered', 'backordered', 'cancelled', 'refunded']
+        
+        if new_status not in valid_statuses:
+            return jsonify({'message': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'}), 400
+            
+        conn = mysql.connection
+        cursor = conn.cursor()
+        
+        # Check if order exists
+        cursor.execute('SELECT id FROM orders WHERE order_number = %s', (order_number,))
+        order = cursor.fetchone()
+        
+        if not order:
+            return jsonify({'message': 'Order not found'}), 404
+            
+        # Check if order item exists and belongs to this order
+        cursor.execute('SELECT * FROM order_items WHERE id = %s AND order_id = %s', (item_id, order['id']))
+        order_item = cursor.fetchone()
+        
+        if not order_item:
+            return jsonify({'message': 'Order item not found or does not belong to this order'}), 404
+            
+        # Update order item status
+        cursor.execute('UPDATE order_items SET status = %s WHERE id = %s', (new_status, item_id))
+        
+        # Check if we need to update the parent order status based on item statuses
+        if data.get('update_order_status', False):
+            # Get all items for this order
+            cursor.execute('SELECT status FROM order_items WHERE order_id = %s', (order['id'],))
+            items = cursor.fetchall()
+            
+            # Determine the overall order status based on item statuses
+            if all(item['status'] == 'delivered' for item in items):
+                order_status = 'delivered'
+            elif all(item['status'] == 'cancelled' for item in items):
+                order_status = 'cancelled'
+            elif any(item['status'] == 'shipped' for item in items):
+                order_status = 'shipped'
+            elif any(item['status'] == 'processing' for item in items):
+                order_status = 'processing'
+            else:
+                order_status = 'pending'
+                
+            # Update the order status
+            cursor.execute('UPDATE orders SET order_status = %s WHERE id = %s', (order_status, order['id']))
+        
+        conn.commit()
+        
+        return jsonify({
+            'message': 'Order item status updated successfully',
+            'item_id': item_id,
+            'new_status': new_status
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error updating order item status for order {order_number}, item {item_id}: {str(e)}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception as rollback_error:
+                app.logger.error(f"Error during rollback: {str(rollback_error)}")
+        return jsonify({'message': 'Failed to update order item status', 'error': str(e)}), 500
+
+# Add the OPTIONS handler for the new route
+@app.route('/orders/<string:order_number>/items/<int:item_id>/status', methods=['OPTIONS'])
+def handle_item_status_options(order_number, item_id):
+    return jsonify({}), 200
+
 # Add CORS support
 @app.after_request
 def after_request(response):
