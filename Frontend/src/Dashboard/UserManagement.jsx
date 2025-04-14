@@ -135,13 +135,13 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 font-sans">
+    <div className="min-h-screen bg-[var(--background)] font-[var(--font-primary)]">
       {/* Header */}
-      <div className="py-5 px-8 bg-white shadow-sm sticky top-0 z-10">
+      <div className="py-5 px-8 bg-white shadow-sm top-0 z-10">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-800 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">User Management</h1>
+          <h1 className="text-3xl font-bold text-[var(--text-dark)]">User Management</h1>
           <button 
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-full flex items-center gap-2 shadow-md transition-all duration-300 hover:shadow-lg hover:from-indigo-700 hover:to-purple-700 transform hover:-translate-y-1"
+            className="bg-[var(--primary)] text-white px-5 py-2.5 rounded-full flex items-center gap-2 shadow-md transition-all duration-300 hover:shadow-lg hover:bg-[var(--primary-dark)]"
             onClick={() => setShowAddModal(true)}
           >
             <UserPlus size={18} />
@@ -154,7 +154,7 @@ const UserManagement = () => {
       <div className="container mx-auto py-8 px-4">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-md p-6 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+          <div className="bg-[var(--primary)] rounded-2xl shadow-md p-6 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <h3 className="text-blue-100 font-medium">Total Users</h3>
               <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-inner">
@@ -167,7 +167,7 @@ const UserManagement = () => {
             </p>
           </div>
           
-          <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl shadow-md p-6 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+          <div className="bg-[var(--success)] rounded-2xl shadow-md p-6 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <h3 className="text-green-100 font-medium">Active Users</h3>
               <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-inner">
@@ -180,7 +180,7 @@ const UserManagement = () => {
             </p>
           </div>
           
-          <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl shadow-md p-6 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+          <div className="bg-[var(--secondary)] rounded-2xl shadow-md p-6 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <h3 className="text-orange-100 font-medium">Inactive Users</h3>
               <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-inner">
@@ -193,7 +193,7 @@ const UserManagement = () => {
             </p>
           </div>
           
-          <div className="bg-gradient-to-br from-purple-500 to-fuchsia-600 rounded-2xl shadow-md p-6 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+          <div className="bg-[var(--accent)] rounded-2xl shadow-md p-6 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <h3 className="text-purple-100 font-medium">Admins</h3>
               <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-inner">
@@ -206,47 +206,47 @@ const UserManagement = () => {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white rounded-2xl shadow-md p-5 mb-6 backdrop-blur-md bg-opacity-90">
+        <div className="bg-[var(--card-bg)] rounded-2xl shadow-md p-5 mb-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="relative w-full md:w-64">
-              <Search size={18} className="absolute left-4 top-3.5 text-gray-400" />
+              <Search size={18} className="absolute left-4 top-3.5 text-[var(--text-light)]" />
               <input
                 type="text"
                 placeholder="Search users..."
-                className="pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-full w-full focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
+                className="pl-11 pr-4 py-3 bg-[var(--background)] border border-[var(--border-light)] rounded-full w-full focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             
             <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-              <button className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600 transition-all">
+              <button className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-[var(--border-light)] hover:bg-[var(--background)] text-[var(--text-light)] transition-all">
                 <Filter size={16} />
                 <span>Filter</span>
                 <ChevronDown size={16} />
               </button>
               
-              <div className="flex bg-gray-100 rounded-full p-1">
+              <div className="flex bg-[var(--background)] rounded-full p-1">
                 <button
-                  className={`px-4 py-2 rounded-full transition-all ${activeTab === 'all' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}
+                  className={`px-4 py-2 rounded-full transition-all ${activeTab === 'all' ? 'bg-[var(--primary)] text-white shadow-md' : 'text-[var(--text-light)] hover:bg-[var(--border-light)]'}`}
                   onClick={() => setActiveTab('all')}
                 >
                   All
                 </button>
                 <button
-                  className={`px-4 py-2 rounded-full transition-all ${activeTab === 'customers' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}
+                  className={`px-4 py-2 rounded-full transition-all ${activeTab === 'customers' ? 'bg-[var(--primary)] text-white shadow-md' : 'text-[var(--text-light)] hover:bg-[var(--border-light)]'}`}
                   onClick={() => setActiveTab('customers')}
                 >
                   Customers
                 </button>
                 <button
-                  className={`px-4 py-2 rounded-full transition-all ${activeTab === 'admins' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}
+                  className={`px-4 py-2 rounded-full transition-all ${activeTab === 'admins' ? 'bg-[var(--primary)] text-white shadow-md' : 'text-[var(--text-light)] hover:bg-[var(--border-light)]'}`}
                   onClick={() => setActiveTab('admins')}
                 >
                   Admins
                 </button>
                 <button
-                  className={`px-4 py-2 rounded-full transition-all ${activeTab === 'inactive' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}
+                  className={`px-4 py-2 rounded-full transition-all ${activeTab === 'inactive' ? 'bg-[var(--primary)] text-white shadow-md' : 'text-[var(--text-light)] hover:bg-[var(--border-light)]'}`}
                   onClick={() => setActiveTab('inactive')}
                 >
                   Inactive
@@ -257,13 +257,13 @@ const UserManagement = () => {
         </div>
 
         {/* Users Table */}
-        <div className="bg-white rounded-2xl shadow-md overflow-hidden backdrop-blur-md bg-opacity-90">
+        <div className="bg-[var(--card-bg)] rounded-2xl shadow-md overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50">
+                <tr className="bg-[var(--background)]">
                   <th 
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-500 cursor-pointer hover:text-indigo-600 transition-colors"
+                    className="px-6 py-4 text-left text-sm font-semibold text-[var(--text-light)] cursor-pointer hover:text-[var(--primary)] transition-colors"
                     onClick={() => handleSort('name')}
                   >
                     <div className="flex items-center">
@@ -273,9 +273,9 @@ const UserManagement = () => {
                       )}
                     </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-500">Email</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-[var(--text-light)]">Email</th>
                   <th 
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-500 cursor-pointer hover:text-indigo-600 transition-colors"
+                    className="px-6 py-4 text-left text-sm font-semibold text-[var(--text-light)] cursor-pointer hover:text-[var(--primary)] transition-colors"
                     onClick={() => handleSort('role')}
                   >
                     <div className="flex items-center">
@@ -286,7 +286,7 @@ const UserManagement = () => {
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-500 cursor-pointer hover:text-indigo-600 transition-colors"
+                    className="px-6 py-4 text-left text-sm font-semibold text-[var(--text-light)] cursor-pointer hover:text-[var(--primary)] transition-colors"
                     onClick={() => handleSort('status')}
                   >
                     <div className="flex items-center">
@@ -297,7 +297,7 @@ const UserManagement = () => {
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-500 cursor-pointer hover:text-indigo-600 transition-colors"
+                    className="px-6 py-4 text-left text-sm font-semibold text-[var(--text-light)] cursor-pointer hover:text-[var(--primary)] transition-colors"
                     onClick={() => handleSort('orders')}
                   >
                     <div className="flex items-center">
@@ -307,25 +307,25 @@ const UserManagement = () => {
                       )}
                     </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-500">Last Active</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-500">Actions</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-[var(--text-light)]">Last Active</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-[var(--text-light)]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-[var(--border-light)]">
                 {sortedUsers.length > 0 ? (
                   sortedUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-indigo-50 transition-all group">
+                    <tr key={user.id} className="hover:bg-[var(--background)] transition-all group">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(user.name)} flex items-center justify-center text-white font-medium mr-4 shadow-md`}>
                             {user.name.charAt(0)}
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors">{user.name}</div>
+                            <div className="font-semibold text-[var(--text-dark)] group-hover:text-[var(--primary)] transition-colors">{user.name}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">{user.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-[var(--text-light)]">{user.email}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-3 py-1.5 text-xs font-medium rounded-full ${
                           user.role === 'Admin' ? 'bg-purple-100 text-purple-700' :
@@ -346,20 +346,20 @@ const UserManagement = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="bg-gray-100 text-gray-800 px-3 py-1.5 rounded-full text-xs font-medium">
+                        <span className="bg-[var(--background)] text-[var(--text-dark)] px-3 py-1.5 rounded-full text-xs font-medium">
                           {user.orders}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">{user.lastActive}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-[var(--text-light)]">{user.lastActive}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         <div className="flex justify-center space-x-3">
                           <button className="text-blue-600 hover:text-blue-800 bg-blue-100 p-2 rounded-full hover:bg-blue-200 transition-all">
                             <Edit2 size={16} />
                           </button>
-                          <button className="text-red-600 hover:text-red-800 bg-red-100 p-2 rounded-full hover:bg-red-200 transition-all">
+                          <button className="text-[var(--danger)] hover:text-red-800 bg-red-100 p-2 rounded-full hover:bg-red-200 transition-all">
                             <Trash2 size={16} />
                           </button>
-                          <button className="text-gray-600 hover:text-gray-800 bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition-all">
+                          <button className="text-[var(--text-light)] hover:text-gray-800 bg-[var(--background)] p-2 rounded-full hover:bg-[var(--border-light)] transition-all">
                             <MoreHorizontal size={16} />
                           </button>
                         </div>
@@ -368,7 +368,7 @@ const UserManagement = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="7" className="px-6 py-8 text-center text-[var(--text-light)]">
                       No users found matching your criteria.
                     </td>
                   </tr>
@@ -378,16 +378,16 @@ const UserManagement = () => {
           </div>
 
           {/* Pagination */}
-          <div className="px-6 py-4 flex items-center justify-between border-t border-gray-100">
-            <div className="text-sm text-gray-600">
+          <div className="px-6 py-4 flex items-center justify-between border-t border-[var(--border-light)]">
+            <div className="text-sm text-[var(--text-light)]">
               Showing <span className="font-medium">{sortedUsers.length}</span> of <span className="font-medium">{users.length}</span> users
             </div>
             <div className="flex items-center space-x-2">
-              <button className="px-4 py-2 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
+              <button className="px-4 py-2 rounded-full border border-[var(--border-light)] text-[var(--text-light)] hover:bg-[var(--background)] transition-all">
                 Previous
               </button>
-              <button className="px-4 py-2 rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-all">1</button>
-              <button className="px-4 py-2 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
+              <button className="px-4 py-2 rounded-full bg-[var(--primary)] text-white shadow-md hover:bg-[var(--primary-dark)] transition-all">1</button>
+              <button className="px-4 py-2 rounded-full border border-[var(--border-light)] text-[var(--text-light)] hover:bg-[var(--background)] transition-all">
                 Next
               </button>
             </div>
@@ -398,12 +398,12 @@ const UserManagement = () => {
       {/* Add New User Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-fade-in transform transition-all duration-300">
+          <div className="bg-[var(--card-bg)] rounded-2xl shadow-xl max-w-md w-full p-6 animate-fade-in transform transition-all duration-300">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Add New User</h2>
+              <h2 className="text-2xl font-bold text-[var(--text-dark)]">Add New User</h2>
               <button 
                 onClick={() => setShowAddModal(false)}
-                className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 transition-all"
+                className="text-[var(--text-light)] hover:text-[var(--text-dark)] p-2 rounded-full hover:bg-[var(--background)] transition-all"
               >
                 <X size={20} />
               </button>
@@ -412,40 +412,40 @@ const UserManagement = () => {
             <div className="space-y-4">
               {/* Name Field */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-medium text-[var(--text-dark)] mb-1">Name</label>
                 <input
                   type="text"
                   name="name"
                   value={newUser.name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${formErrors.name ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500`}
+                  className={`w-full px-4 py-2 rounded-lg border ${formErrors.name ? 'border-[var(--danger)]' : 'border-[var(--border-light)]'} focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]`}
                   placeholder="Enter full name"
                 />
-                {formErrors.name && <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>}
+                {formErrors.name && <p className="mt-1 text-sm text-[var(--danger)]">{formErrors.name}</p>}
               </div>
               
               {/* Email Field */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-[var(--text-dark)] mb-1">Email</label>
                 <input
                   type="email"
                   name="email"
                   value={newUser.email}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${formErrors.email ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500`}
+                  className={`w-full px-4 py-2 rounded-lg border ${formErrors.email ? 'border-[var(--danger)]' : 'border-[var(--border-light)]'} focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]`}
                   placeholder="Enter email address"
                 />
-                {formErrors.email && <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>}
+                {formErrors.email && <p className="mt-1 text-sm text-[var(--danger)]">{formErrors.email}</p>}
               </div>
               
               {/* Role Field */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <label className="block text-sm font-medium text-[var(--text-dark)] mb-1">Role</label>
                 <select
                   name="role"
                   value={newUser.role}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                  className="w-full px-4 py-2 rounded-lg border border-[var(--border-light)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]"
                 >
                   <option value="Customer">Customer</option>
                   <option value="Admin">Admin</option>
@@ -455,7 +455,7 @@ const UserManagement = () => {
               
               {/* Status Field */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-[var(--text-dark)] mb-1">Status</label>
                 <div className="flex gap-4">
                   <label className="flex items-center cursor-pointer">
                     <input
@@ -464,9 +464,9 @@ const UserManagement = () => {
                       value="Active"
                       checked={newUser.status === 'Active'}
                       onChange={handleInputChange}
-                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                      className="w-4 h-4 text-[var(--primary)] focus:ring-[var(--primary)]"
                     />
-                    <span className="ml-2 text-gray-700">Active</span>
+                    <span className="ml-2 text-[var(--text-dark)]">Active</span>
                   </label>
                   <label className="flex items-center cursor-pointer">
                     <input
@@ -475,9 +475,9 @@ const UserManagement = () => {
                       value="Inactive"
                       checked={newUser.status === 'Inactive'}
                       onChange={handleInputChange}
-                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                      className="w-4 h-4 text-[var(--primary)] focus:ring-[var(--primary)]"
                     />
-                    <span className="ml-2 text-gray-700">Inactive</span>
+                    <span className="ml-2 text-[var(--text-dark)]">Inactive</span>
                   </label>
                 </div>
               </div>
@@ -486,13 +486,13 @@ const UserManagement = () => {
             <div className="mt-8 flex justify-end gap-3">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"
+                className="px-4 py-2 rounded-lg border border-[var(--border-light)] text-[var(--text-dark)] hover:bg-[var(--background)] transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddUser}
-                className="px-6 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md"
+                className="px-6 py-2 rounded-lg bg-[var(--primary)] text-white font-medium hover:bg-[var(--primary-dark)] transition-all shadow-md"
               >
                 Add User
               </button>

@@ -225,33 +225,37 @@ const OrderManagement = ({
     };
 
     // The function to update order item status
-    const updateOrderItem = async (orderNumber, itemId, newStatus) => {
-        try {
-            // Set the updating state for this specific order item
-            setIsUpdating(`${orderNumber}-${itemId}`);
-            
-            // Call the correct endpoint with the right structure
-            const response = await axios.patch(`http://127.0.0.1:5000/orders/${orderNumber}/items/${itemId}/status`, {
+const updateOrderItem = async (orderNumber, itemId, newStatus) => {
+    try {
+        // Set the updating state for this specific order item
+        setIsUpdating(`${orderNumber}-${itemId}`);
+        
+        // Call the endpoint with order_number as a query parameter
+        const response = await axios.patch(
+            `http://127.0.0.1:5000/products/${itemId}/delivery-status?order_number=${orderNumber}`, 
+            {
                 status: newStatus
-            });
-            
-            if (response.status === 200) {
-                // Show success message
-                toast.success("Order status updated successfully");
-                // Refetch orders to update the UI
-                fetchOrders();
-            } else {
-                toast.error("Failed to update order status");
             }
-        } catch (error) {
-            console.error('Error updating order status:', error);
-            toast.error(error.response?.data?.message || "An error occurred while updating order status");
-        } finally {
-            // Clear the updating state
-            setIsUpdating(null);
+        );
+        
+        if (response.status === 200) {
+            // Show success message
+            toast.success("Delivery status updated successfully");
+            // Refetch orders to update the UI
+            fetchOrders();
+        } else {
+            toast.error("Failed to update delivery status");
         }
-    };
+    } catch (error) {
+        console.error('Error updating delivery status:', error);
+        toast.error(error.response?.data?.message || "An error occurred while updating delivery status");
+    } finally {
+        // Clear the updating state
+        setIsUpdating(null);
+    }
+};
 
+    
     return (
         <div className="min-h-screen bg-gray-50">
         {/* Dashboard Header */}
@@ -318,40 +322,6 @@ const OrderManagement = ({
                         </button>
                         </div>
                     </form>
-                
-                    {/* Search History Dropdown */}
-                    {/* {showSearchHistory && searchHistory.length > 0 && (
-                    <div 
-                    ref={searchHistoryRef}
-                    className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto transition-all duration-300 ease-in-out"
-                    >
-                    <div className="px-3 py-2 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                        <span className="text-xs font-medium text-gray-500 flex items-center">
-                        <Clock className="h-3 w-3 mr-1" /> Recent Searches
-                        </span>
-                        <button 
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium transition duration-200"
-                        onClick={() => setSearchHistory([])}
-                        >
-                        Clear All
-                        </button>
-                    </div>
-                    <ul className="py-1">
-                        {searchHistory.map((term, index) => (
-                        <li key={index}>
-                            <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center transition duration-200"
-                            onClick={() => handleSearchHistorySelect(term)}
-                            >
-                            <Clock className="h-3 w-3 mr-2 text-gray-400" />
-                            {term}
-                            </button>
-                        </li>
-                        ))}
-                    </ul>
-                    </div>
-                )} */}
                 </div>
                 
                 {/* Filter Toggle */}
@@ -813,41 +783,37 @@ const OrderManagement = ({
                                             {formatCurrency(item.total_price || 0)}
                                         </td>
                                         {/* Status Column */}
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                                        <span
-                                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                            item.status === 'delivered'
-                                                ? 'bg-green-100 text-green-800'
-                                                : item.status === 'shipped'
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : item.status === 'processing'
-                                                ? 'bg-yellow-100 text-yellow-800'
-                                                : item.status === 'cancelled'
-                                                ? 'bg-red-100 text-red-800'
-                                                : 'bg-gray-100 text-gray-800'
-                                            }`}
-                                        >
-                                            {(item.status || 'pending').charAt(0).toUpperCase() + (item.status || 'pending').slice(1)}
-                                        </span>
-                                        </td>
-                                        {/* Action Column */}
-                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                        <select
-                                            value={item.status || 'pending'}
-                                            onChange={(e) => updateOrderItem(order.order_number, item.id, e.target.value)}
-                                            className="mt-1 text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                            disabled={isUpdating === `${order.order_number}-${item.id}`}
-                                        >
-                                            <option value="pending">Pending</option>
-                                            <option value="processing">Processing</option>
-                                            <option value="shipped">Shipped</option>
-                                            <option value="delivered">Delivered</option>
-                                            <option value="cancelled">Cancelled</option>
-                                        </select>
-                                        {isUpdating === `${order.order_number}-${item.id}` && (
-                                            <span className="ml-2 text-xs text-blue-600">Updating...</span>
-                                        )}
-                                        </td>
+<td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+    <span
+        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+            item.status === 'processed'
+                ? 'bg-green-100 text-green-800'
+                : item.status === 'pending'
+                ? 'bg-yellow-100 text-yellow-800'
+                : item.status === 'cancelled'
+                ? 'bg-red-100 text-red-800'
+                : 'bg-gray-100 text-gray-800'
+        }`}
+    >
+        {(item.status || 'pending').charAt(0).toUpperCase() + (item.status || 'pending').slice(1)}
+    </span>
+</td>
+{/* Action Column */}
+<td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+    <select
+        value={item.status || 'pending'}
+        onChange={(e) => updateOrderItem(order.order_number, item.id, e.target.value)}
+        className="mt-1 text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        disabled={isUpdating === `${order.order_number}-${item.id}`}
+    >
+        <option value="pending">Pending</option>
+        <option value="processed">Processed</option>
+        <option value="cancelled">Cancelled</option>
+    </select>
+    {isUpdating === `${order.order_number}-${item.id}` && (
+        <span className="ml-2 text-xs text-blue-600">Updating...</span>
+    )}
+</td>
                                             </tr>
                                         ))
                                         ) : (
