@@ -5,256 +5,288 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const OrderManagement = ({
-    orders = [],
-    loading = false,
-    error = null,
-    fetchOrders,
-    updateOrderStatus,
-    filterStatus = 'all',
-    setFilterStatus,
-    searchTerm = '',
-    setSearchTerm,
-    dateRange = { from: '', to: '' },
-    setDateRange
-}) => {
-    const [isUpdating, setIsUpdating] = useState(null); // Will store the order number being updated
-    const [expandedOrder, setExpandedOrder] = useState(null);
-    const [isFilterOpen, setIsFilterOpen] = useState(false);
-    const [searchField, setSearchField] = useState('all');
-    const [paymentFilter, setPaymentFilter] = useState('all');
-    const [priceRange, setPriceRange] = useState({ min: '', max: '' });
-    const [advancedFiltersApplied, setAdvancedFiltersApplied] = useState(false);
-    const [searchHistory, setSearchHistory] = useState([]);
-    const [setShowSearchHistory] = useState(false);
-    const [isSearching, setIsSearching] = useState(false);
-    const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
-    const searchTimeoutRef = useRef(null);
-    const searchInputRef = useRef(null);
-    const searchHistoryRef = useRef(null);
-
-    // New effect to visually indicate when advanced filters are applied
-    useEffect(() => {
-        const hasAdvancedFilters = 
-        dateRange.from !== '' || 
-        dateRange.to !== '' || 
-        paymentFilter !== 'all' || 
-        priceRange.min !== '' || 
-        priceRange.max !== '';
-        
-        setAdvancedFiltersApplied(hasAdvancedFilters);
-    }, [dateRange, paymentFilter, priceRange]);
-
-    const toggleOrderExpand = (orderNumber) => {
-        if (expandedOrder === orderNumber) {
-        setExpandedOrder(null);
-        } else {
-        setExpandedOrder(orderNumber);
-        }
-    };
-
-    useEffect(() => {
-        if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-        }
-        
-        searchTimeoutRef.current = setTimeout(() => {
-        setSearchTerm(localSearchTerm);
-        if (localSearchTerm && !searchHistory.includes(localSearchTerm)) {
-            setSearchHistory(prev => [localSearchTerm, ...prev].slice(0, 5));
-        }
-        }, 500); // 500ms debounce
-        
-        return () => {
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
-        };
-    }, [localSearchTerm]);
-
-    // Handle click outside to close search history dropdown
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-        if (searchHistoryRef.current && !searchHistoryRef.current.contains(event.target) &&
-            searchInputRef.current && !searchInputRef.current.contains(event.target)) {
-            setShowSearchHistory(false);
-        }
-        };
-        
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    // Visual effect when search is active
-    useEffect(() => {
-        if (searchTerm) {
-        setIsSearching(true);
-        const timer = setTimeout(() => {
-            setIsSearching(false);
-        }, 1000);
-        return () => clearTimeout(timer);
-        }
-    }, [searchTerm]);
-
-    const handleSearch = (e) => {
-        e.preventDefault();
-        // Save search term to history if not already there
-        if (localSearchTerm && !searchHistory.includes(localSearchTerm)) {
-        setSearchHistory(prev => [localSearchTerm, ...prev].slice(0, 5));
-        }
-        setSearchTerm(localSearchTerm);
-        fetchOrders();
-        setShowSearchHistory(false);
-    };
-
-    const clearSearch = () => {
-        setLocalSearchTerm('');
-        setSearchTerm('');
-        fetchOrders();
-    };
-
-    const handleApplyFilters = () => {
-        fetchOrders();
-        setIsFilterOpen(false);
-    };
-
-    const handleResetFilters = () => {
-        setFilterStatus('all');
-        setDateRange({ from: '', to: '' });
-        setSearchTerm('');
-        setSearchField('all');
-        setPaymentFilter('all');
-        setPriceRange({ min: '', max: '' });
-        setIsFilterOpen(false);
-        fetchOrders();
-    };
-
-    const getStatusColor = (status) => {
-        switch (status) {
-        case 'pending': return 'bg-yellow-100 text-yellow-800';
-        case 'processing': return 'bg-blue-100 text-blue-800';
-        case 'shipped': return 'bg-purple-100 text-purple-800';
-        case 'delivered': return 'bg-green-100 text-green-800';
-        case 'cancelled': return 'bg-red-100 text-red-800';
-        case 'refunded': return 'bg-gray-100 text-gray-800';
-        default: return 'bg-gray-100 text-gray-800';
-        }
-    };
-
-    const getPaymentStatusColor = (status) => {
-        switch (status) {
-        case 'paid': return 'bg-green-100 text-green-800';
-        case 'pending': return 'bg-yellow-100 text-yellow-800';
-        case 'partially_paid': return 'bg-blue-100 text-blue-800';
-        case 'refunded': return 'bg-red-100 text-red-800';
-        default: return 'bg-gray-100 text-gray-800';
-        }
-    };
-
-    const getStatusIcon = (status) => {
-        switch (status) {
-        case 'pending': return <Clock className="w-4 h-4" />;
-        case 'processing': return <RefreshCw className="w-4 h-4" />;
-        case 'shipped': return <Truck className="w-4 h-4" />;
-        case 'delivered': return <Check className="w-4 h-4" />;
-        case 'cancelled': return <X className="w-4 h-4" />;
-        case 'refunded': return <RefreshCw className="w-4 h-4" />;
-        default: return <AlertCircle className="w-4 h-4" />;
-        }
-    };
-
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-        });
-    };
-
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
-        }).format(amount);
-    };
-
-    // Get count of active filters
-    const getActiveFiltersCount = () => {
-        let count = 0;
-        if (filterStatus !== 'all') count++;
-        if (searchTerm !== '') count++;
-        if (dateRange.from !== '') count++;
-        if (dateRange.to !== '') count++;
-        if (paymentFilter !== 'all') count++;
-        if (priceRange.min !== '') count++;
-        if (priceRange.max !== '') count++;
-        return count;
-    };
-
-    const updateOrder = async (orderNumber, status) => {
-            try {
-            setIsUpdating(orderNumber);
+        orders = [],
+        loading = false,
+        error = null,
+        fetchOrders,
+        updateOrderStatus,
+        filterStatus = 'all',
+        setFilterStatus,
+        searchTerm = '',
+        setSearchTerm,
+        dateRange = { from: '', to: '' },
+        setDateRange
+    }) => {
+        const [localOrders, setLocalOrders] = useState(orders); // Renamed from setOrders to localOrders/setLocalOrders
+        const [isUpdating, setIsUpdating] = useState(null);
+        const [expandedOrder, setExpandedOrder] = useState(null);
+        const [isFilterOpen, setIsFilterOpen] = useState(false);
+        const [searchField, setSearchField] = useState('all');
+        const [paymentFilter, setPaymentFilter] = useState('all');
+        const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+        const [advancedFiltersApplied, setAdvancedFiltersApplied] = useState(false);
+        const [searchHistory, setSearchHistory] = useState([]);
+        const [showSearchHistory, setShowSearchHistory] = useState(false); // Fixed missing useState variable
+        const [isSearching, setIsSearching] = useState(false);
+        const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+        const searchTimeoutRef = useRef(null);
+        const searchInputRef = useRef(null);
+        const searchHistoryRef = useRef(null);
+    
+        // Update localOrders when the orders prop changes
+        useEffect(() => {
+            setLocalOrders(orders);
+        }, [orders]);
+    
+        // New effect to visually indicate when advanced filters are applied
+        useEffect(() => {
+            const hasAdvancedFilters = 
+            dateRange.from !== '' || 
+            dateRange.to !== '' || 
+            paymentFilter !== 'all' || 
+            priceRange.min !== '' || 
+            priceRange.max !== '';
             
-            if (updateOrderStatus) {
-                await updateOrderStatus(orderNumber, status);
+            setAdvancedFiltersApplied(hasAdvancedFilters);
+        }, [dateRange, paymentFilter, priceRange]);
+    
+        const toggleOrderExpand = (orderNumber) => {
+            if (expandedOrder === orderNumber) {
+                setExpandedOrder(null);
             } else {
-                // Updated to match your endpoint and request format
-                const response = await axios.patch(`/orders/${orderNumber}/status`, { 
-                status: status 
-                });
-                
-                if (response.status !== 200) {
-                throw new Error('Failed to update order status');
+                setExpandedOrder(orderNumber);
+            }
+        };
+    
+        useEffect(() => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+            
+            searchTimeoutRef.current = setTimeout(() => {
+                setSearchTerm(localSearchTerm);
+                if (localSearchTerm && !searchHistory.includes(localSearchTerm)) {
+                    setSearchHistory(prev => [localSearchTerm, ...prev].slice(0, 5));
                 }
+            }, 500); // 500ms debounce
+            
+            return () => {
+                if (searchTimeoutRef.current) {
+                    clearTimeout(searchTimeoutRef.current);
+                }
+            };
+        }, [localSearchTerm, setSearchTerm, searchHistory]);
+    
+        // Handle click outside to close search history dropdown
+        useEffect(() => {
+            const handleClickOutside = (event) => {
+                if (searchHistoryRef.current && !searchHistoryRef.current.contains(event.target) &&
+                    searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+                    setShowSearchHistory(false);
+                }
+            };
+            
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => {
+                document.removeEventListener('mousedown', handleClickOutside);
+            };
+        }, []);
+    
+        // Visual effect when search is active
+        useEffect(() => {
+            if (searchTerm) {
+                setIsSearching(true);
+                const timer = setTimeout(() => {
+                    setIsSearching(false);
+                }, 1000);
+                return () => clearTimeout(timer);
             }
-            
-            // Success notification
-            // You could add a toast system or a simple message
-            
+        }, [searchTerm]);
+    
+        const handleSearch = (e) => {
+            e.preventDefault();
+            // Save search term to history if not already there
+            if (localSearchTerm && !searchHistory.includes(localSearchTerm)) {
+                setSearchHistory(prev => [localSearchTerm, ...prev].slice(0, 5));
+            }
+            setSearchTerm(localSearchTerm);
             fetchOrders();
+            setShowSearchHistory(false);
+        };
+    
+        const clearSearch = () => {
+            setLocalSearchTerm('');
+            setSearchTerm('');
+            fetchOrders();
+        };
+    
+        const handleApplyFilters = () => {
+            fetchOrders();
+            setIsFilterOpen(false);
+        };
+    
+        const handleResetFilters = () => {
+            setFilterStatus('all');
+            setDateRange({ from: '', to: '' });
+            setSearchTerm('');
+            setSearchField('all');
+            setPaymentFilter('all');
+            setPriceRange({ min: '', max: '' });
+            setIsFilterOpen(false);
+            fetchOrders();
+        };
+    
+        const getStatusColor = (status) => {
+            switch (status) {
+                case 'pending': return 'bg-yellow-100 text-yellow-800';
+                case 'processing': return 'bg-blue-100 text-blue-800';
+                case 'shipped': return 'bg-purple-100 text-purple-800';
+                case 'delivered': return 'bg-green-100 text-green-800';
+                case 'cancelled': return 'bg-red-100 text-red-800';
+                case 'refunded': return 'bg-gray-100 text-gray-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        };
+    
+        const getPaymentStatusColor = (status) => {
+            switch (status) {
+                case 'paid': return 'bg-green-100 text-green-800';
+                case 'pending': return 'bg-yellow-100 text-yellow-800';
+                case 'partially_paid': return 'bg-blue-100 text-blue-800';
+                case 'refunded': return 'bg-red-100 text-red-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        };
+    
+        const getStatusIcon = (status) => {
+            switch (status) {
+                case 'pending': return <Clock className="w-4 h-4" />;
+                case 'processing': return <RefreshCw className="w-4 h-4" />;
+                case 'shipped': return <Truck className="w-4 h-4" />;
+                case 'delivered': return <Check className="w-4 h-4" />;
+                case 'cancelled': return <X className="w-4 h-4" />;
+                case 'refunded': return <RefreshCw className="w-4 h-4" />;
+                default: return <AlertCircle className="w-4 h-4" />;
+            }
+        };
+    
+        const formatDate = (dateString) => {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        };
+    
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        };
+    
+        // Get count of active filters
+        const getActiveFiltersCount = () => {
+            let count = 0;
+            if (filterStatus !== 'all') count++;
+            if (searchTerm !== '') count++;
+            if (dateRange.from !== '') count++;
+            if (dateRange.to !== '') count++;
+            if (paymentFilter !== 'all') count++;
+            if (priceRange.min !== '') count++;
+            if (priceRange.max !== '') count++;
+            return count;
+        };
+    
+        // Function to update the order status
+        const updateOrder = async (orderNumber, status) => {
+            try {
+                setIsUpdating(orderNumber);
+                
+                if (updateOrderStatus) {
+                    await updateOrderStatus(orderNumber, status);
+                } else {
+                    // Updated to match your endpoint and request format
+                    const response = await axios.patch(`/orders/${orderNumber}/status`, { 
+                        status: status 
+                    });
+                    
+                    if (response.status !== 200) {
+                        throw new Error('Failed to update order status');
+                    }
+                }
+                
+                // Success notification
+                toast.success("Order status updated successfully");
+                
+                // Refresh orders
+                await fetchOrders();
             } catch (error) {
-            console.error('Error updating order status:', error);
-            // Show error notification
+                console.error('Error updating order status:', error);
+                toast.error("Failed to update order status");
             } finally {
-            setIsUpdating(null);
+                setIsUpdating(null);
             }
-    };
-
-    // The function to update order item status
-const updateOrderItem = async (orderNumber, itemId, newStatus) => {
-    try {
-        // Set the updating state for this specific order item
-        setIsUpdating(`${orderNumber}-${itemId}`);
-        
-        // Call the endpoint with order_number as a query parameter
-        const response = await axios.patch(
-            `http://127.0.0.1:5000/products/${itemId}/delivery-status?order_number=${orderNumber}`, 
-            {
-                status: newStatus
+        };
+    
+        // The function to update order item status with optimistic updates
+        const updateOrderItem = async (orderNumber, itemId, newStatus) => {
+            try {
+                // Set the updating state for this specific order item
+                setIsUpdating(`${orderNumber}-${itemId}`);
+                
+                // Update UI optimistically first
+                setLocalOrders(prevOrders => 
+                    prevOrders.map(o => {
+                        if (o.order_number === orderNumber) {
+                            return {
+                                ...o,
+                                items: o.items.map(i => {
+                                    if (i.id === itemId) {
+                                        return { ...i, status: newStatus };
+                                    }
+                                    return i;
+                                })
+                            };
+                        }
+                        return o;
+                    })
+                );
+                
+                // Call the endpoint with order_number as a query parameter
+                const response = await axios.patch(
+                    `http://127.0.0.1:5000/products/${itemId}/delivery-status?order_number=${orderNumber}`, 
+                    {
+                        status: newStatus
+                    }
+                );
+                
+                if (response.status === 200) {
+                    // Show success message
+                    toast.success("Delivery status updated successfully");
+                } else {
+                    toast.error("Failed to update delivery status");
+                    // If failed, revert the optimistic update by fetching fresh data
+                    await fetchOrders();
+                }
+            } catch (error) {
+                console.error('Error updating delivery status:', error);
+                toast.error(error.response?.data?.message || "An error occurred while updating delivery status");
+                // If error, revert the optimistic update by fetching fresh data
+                await fetchOrders();
+            } finally {
+                // Clear the updating state
+                setIsUpdating(null);
             }
-        );
-        
-        if (response.status === 200) {
-            // Show success message
-            toast.success("Delivery status updated successfully");
-            // Refetch orders to update the UI
+        };
+    
+        // Initial fetch of orders
+        useEffect(() => {
             fetchOrders();
-        } else {
-            toast.error("Failed to update delivery status");
-        }
-    } catch (error) {
-        console.error('Error updating delivery status:', error);
-        toast.error(error.response?.data?.message || "An error occurred while updating delivery status");
-    } finally {
-        // Clear the updating state
-        setIsUpdating(null);
-    }
-};
-
+        }, []);
     
     return (
         <div className="min-h-screen bg-gray-50">
@@ -783,37 +815,38 @@ const updateOrderItem = async (orderNumber, itemId, newStatus) => {
                                             {formatCurrency(item.total_price || 0)}
                                         </td>
                                         {/* Status Column */}
-<td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-    <span
-        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-            item.status === 'processed'
-                ? 'bg-green-100 text-green-800'
-                : item.status === 'pending'
-                ? 'bg-yellow-100 text-yellow-800'
-                : item.status === 'cancelled'
-                ? 'bg-red-100 text-red-800'
-                : 'bg-gray-100 text-gray-800'
-        }`}
-    >
-        {(item.status || 'pending').charAt(0).toUpperCase() + (item.status || 'pending').slice(1)}
-    </span>
-</td>
-{/* Action Column */}
-<td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-    <select
-        value={item.status || 'pending'}
-        onChange={(e) => updateOrderItem(order.order_number, item.id, e.target.value)}
-        className="mt-1 text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-        disabled={isUpdating === `${order.order_number}-${item.id}`}
-    >
-        <option value="pending">Pending</option>
-        <option value="processed">Processed</option>
-        <option value="cancelled">Cancelled</option>
-    </select>
-    {isUpdating === `${order.order_number}-${item.id}` && (
-        <span className="ml-2 text-xs text-blue-600">Updating...</span>
-    )}
-</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                                <span
+                                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        item.status === 'processed'
+                                            ? 'bg-green-100 text-green-800'
+                                            : item.status === 'pending'
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : item.status === 'cancelled'
+                                            ? 'bg-red-100 text-red-800'
+                                            : 'bg-gray-100 text-gray-800'
+                                    }`}
+                                >
+                                    {(item.status || 'pending').charAt(0).toUpperCase() + (item.status || 'pending').slice(1)}
+                                </span>
+                            </td>
+                            {/* Action Column */}
+                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                <select
+                                    key={`${order.order_number}-${item.id}-${item.status}`}
+                                    value={item.status || 'pending'}
+                                    onChange={(e) => updateOrderItem(order.order_number, item.id, e.target.value)}
+                                    className="mt-1 text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    disabled={isUpdating === `${order.order_number}-${item.id}`}
+                                >
+                                    <option value="pending">Pending</option>
+                                    <option value="processed">Processed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                {isUpdating === `${order.order_number}-${item.id}` && (
+                                    <span className="ml-2 text-xs text-blue-600">Updating...</span>
+                                )}
+                            </td>
                                             </tr>
                                         ))
                                         ) : (

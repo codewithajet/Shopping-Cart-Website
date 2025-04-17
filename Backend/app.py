@@ -2184,137 +2184,91 @@ def add_tracking_event(delivery_id):
                 app.logger.error(f"Error during rollback: {str(rollback_error)}")
         return jsonify({'message': 'Failed to add tracking event', 'error': str(e)}), 500
 
-# Update delivery information
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-
 @app.route('/products/<int:product_id>/delivery-status', methods=['PATCH'])
-def update_product_delivery_status(product_id):
+def update_delivery_status(product_id):
     """
-    Update the delivery status for a specific product.
+    Update the delivery status for a specific product in an order.
+    Expects order_number as a query parameter and status in the request body.
+    Returns success or error message.
     """
     try:
-        # Validate JSON request
+        # Get the order number from query parameters
+        order_id = request.args.get('order_number')
+        
+        # Get the new status from request body
         data = request.get_json()
-        if not data or 'status' not in data:
-            return jsonify({'error': 1, 'message': 'Status field is required'}), 400
-
-        new_status = data['status']
-        valid_statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned']
+        new_status = data.get('status')
+        
+        # Validate input
+        if not order_id:
+            return jsonify({"message": "Order number is required", "success": False}), 400
+        
+        if not new_status:
+            return jsonify({"message": "New status is required", "success": False}), 400
+            
+        # Validate the status value matches what frontend sends
+        valid_statuses = ['pending', 'processed', 'cancelled']
         if new_status not in valid_statuses:
-            return jsonify({
-                'error': 1,
-                'message': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'
-            }), 400
-
-        # Validate order number in query parameters
-        order_number = request.args.get('order_number')
-        if not order_number:
-            return jsonify({'error': 1, 'message': 'Order number is required as a query parameter'}), 400
-
-        # Use context manager for database connection
-        connection = mysql.connection
-        cursor = connection.cursor()
-
-        try:
-            # Check if the order exists
-            cursor.execute('SELECT id FROM orders WHERE order_number = %s', (order_number,))
-            order_result = cursor.fetchone()
-
-            if not order_result:
-                return jsonify({
-                    'error': 1,
-                    'message': f'Order with number {order_number} not found',
-                    'status': new_status,
-                    'updated_count': 0
-                }), 404
-
-            order_id = order_result[0]
-
-            # Check if delivery exists for the product and order
-            cursor.execute('''
-                SELECT d.id 
-                FROM deliveries d
-                WHERE d.product_id = %s AND d.order_id = %s
-            ''', (product_id, order_id))
-            result = cursor.fetchone()
-
-            if not result:
-                return jsonify({
-                    'error': 1,
-                    'message': f'No delivery found for product ID {product_id} and order number {order_number}',
-                    'status': new_status,
-                    'updated_count': 0
-                }), 404
-
-            delivery_id = result[0]
-
-            # Update delivery status
-            cursor.execute('''
-                UPDATE deliveries
-                SET status = %s, updated_at = %s
-                WHERE id = %s
-            ''', (new_status, datetime.utcnow(), delivery_id))
-
-            if cursor.rowcount > 0:
-                # Add tracking event
-                cursor.execute('''
-                    INSERT INTO delivery_tracking_events 
-                    (delivery_id, status, location, timestamp, details)
-                    VALUES (%s, %s, %s, %s, %s)
-                ''', (
-                    delivery_id,
-                    new_status,
-                    'System',
-                    datetime.utcnow(),
-                    f'Status updated to {new_status}'
-                ))
-
-                # Update order status if delivered or cancelled
-                if new_status in ['delivered', 'cancelled']:
-                    new_order_status = 'delivered' if new_status == 'delivered' else 'cancelled'
-                    cursor.execute('''
-                        UPDATE orders
-                        SET order_status = %s
-                        WHERE id = %s
-                    ''', (new_order_status, order_id))
-
-                connection.commit()
-
-                return jsonify({
-                    'error': 0,
-                    'message': 'Delivery status updated successfully',
-                    'status': new_status,
-                    'updated_count': cursor.rowcount,
-                    'delivery_id': delivery_id
-                }), 200
-            else:
-                return jsonify({
-                    'error': 0,
-                    'message': 'No changes made - delivery status may already be set to this value',
-                    'status': new_status
-                }), 200
-
-        except Exception as db_error:
-            connection.rollback()
-            logging.error(f"Database error: {str(db_error)}")
-            return jsonify({
-                'error': 1,
-                'message': 'Database error occurred',
-                'details': str(db_error)
-            }), 500
-        finally:
+            return jsonify({"message": f"Invalid status. Must be one of: {', '.join(valid_statuses)}", "success": False}), 400
+        
+        # Check if the record exists
+        cursor = mysql.connection.cursor()
+        cursor.execute(
+            "SELECT id FROM deliveries WHERE order_id = %s AND product_id = %s", 
+            (order_id, product_id)
+        )
+        existing_record = cursor.fetchone()
+        
+        if not existing_record:
+            # If the record doesn't exist, create it
+            cursor.execute(
+                """
+                INSERT INTO deliveries 
+                (order_id, product_id, status, quantity) 
+                VALUES (%s, %s, %s, 1)
+                """, 
+                (order_id, product_id, new_status)
+            )
+            mysql.connection.commit()
             cursor.close()
-
+            
+            return jsonify({
+                "message": "Delivery status created successfully",
+                "product_id": product_id,
+                "order_id": order_id,
+                "new_status": new_status,
+                "success": True
+            }), 201
+        else:
+            # Update the existing record
+            cursor.execute(
+                """
+                UPDATE deliveries 
+                SET status = %s
+                WHERE order_id = %s AND product_id = %s
+                """, 
+                (new_status, order_id, product_id)
+            )
+            
+            # Commit the changes
+            mysql.connection.commit()
+            cursor.close()
+            
+            return jsonify({
+                "message": "Delivery status updated successfully",
+                "product_id": product_id,
+                "order_id": order_id,
+                "new_status": new_status,
+                "success": True
+            }), 200
+        
     except Exception as e:
-        logging.error(f"Error updating delivery status for product {product_id}: {str(e)}")
         return jsonify({
-            'error': 1,
-            'message': 'Failed to update delivery status',
-            'details': str(e)
+            "message": "Failed to update delivery status", 
+            "error": str(e), 
+            "success": False
         }), 500
-
+    
 # Customer-facing tracking endpoint
 @app.route('/track/<string:tracking_number>', methods=['GET'])
 def track_delivery(tracking_number):
