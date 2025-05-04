@@ -3,6 +3,7 @@ import SearchComponent from '../components/SearchComponent';
 import ShowCourseComponent from '../components/ShowCourseComponent';
 import UserCartComponent from '../components/UserCartComponent';
 import FilterSidebarComponent from '../components/FilterSidebarComponent';
+import Footer from '../components/Footer'; // Import the Footer component
 
 function Cart() {
     const [products, setProducts] = useState([]);
@@ -14,7 +15,7 @@ function Cart() {
     const [displayedProducts, setDisplayedProducts] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
-    const productsPerPage = 20; // Changed to 20 products per page
+    const productsPerPage = 20; // Number of products per page
     const [activeFilters, setActiveFilters] = useState({
         priceRange: { min: 0, max: 1000 },
         categories: [],
@@ -125,25 +126,27 @@ function Cart() {
 
     // Helper function for sorting products
     const applySorting = (products, sortBy) => {
+        let sortedProducts = [...products]; // Create a new array to avoid mutating the original
+        
         switch (sortBy) {
             case 'price-low-high':
-                products.sort((a, b) => a.price - b.price);
+                sortedProducts.sort((a, b) => a.price - b.price);
                 break;
             case 'price-high-low':
-                products.sort((a, b) => b.price - a.price);
+                sortedProducts.sort((a, b) => b.price - a.price);
                 break;
             case 'newest':
-                products.sort((a, b) => b.id - a.id);
+                sortedProducts.sort((a, b) => b.id - a.id);
                 break;
             case 'rating':
-                products.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+                sortedProducts.sort((a, b) => (b.rating || 0) - (a.rating || 0));
                 break;
             default: // 'featured' or any other value
                 // No sorting needed for featured
                 break;
         }
         
-        return products;
+        return sortedProducts;
     };
 
     // Update displayed products whenever filtered products or current page changes
@@ -152,7 +155,7 @@ function Cart() {
         const startIndex = (currentPage - 1) * productsPerPage;
         const endIndex = startIndex + productsPerPage;
         
-        // Clear previous products and load only current page products
+        // Get products for current page only
         setDisplayedProducts(filteredProducts.slice(startIndex, endIndex));
         
         // Update hasMore flag
@@ -160,14 +163,14 @@ function Cart() {
         setIsLoadingMore(false);
     }, [filteredProducts, currentPage, productsPerPage]);
 
-    // Load more products - completely rewritten
+    // Load more products
     const loadMoreProducts = () => {
         if (isLoadingMore || !hasMore) return;
         
         // Set loading state
         setIsLoadingMore(true);
         
-        // Clear current products
+        // Clear current products to show loading indicator
         setDisplayedProducts([]);
         
         // After a short delay, load the next page
@@ -203,15 +206,15 @@ function Cart() {
             );
         }
         
-        // Apply sorting
-        applySorting(result, filters.sortBy);
-        
         // Apply search filter if there's an active search term
         if (searchCourse.trim()) {
             result = result.filter((course) =>
                 course.name.toLowerCase().includes(searchCourse.toLowerCase())
             );
         }
+        
+        // Apply sorting
+        result = applySorting(result, filters.sortBy);
         
         setFilteredProducts(result);
     };
@@ -334,6 +337,7 @@ function Cart() {
                 searchCourse={searchCourse} 
                 courseSearchUserFunction={courseSearchUserFunction}
                 toggleCart={toggleCart}
+                cartCourses={cartCourses} // Pass cart courses to show correct count
             />
             <main className="App-main with-filters">
                 <FilterSidebarComponent 
@@ -357,11 +361,11 @@ function Cart() {
                                 <strong>
                                     {displayedProducts.length === 0 && isLoadingMore 
                                         ? "Loading next set of products..." 
-                                        : `Showing products ${(currentPage - 1) * productsPerPage + 1} to ${Math.min(currentPage * productsPerPage, filteredProducts.length)} of ${filteredProducts.length} products`
+                                        : `Showing products ${filteredProducts.length > 0 ? (currentPage - 1) * productsPerPage + 1 : 0} to ${Math.min(currentPage * productsPerPage, filteredProducts.length)} of ${filteredProducts.length} products`
                                     }
                                 </strong>
                                 <br />
-                                <span className="page-info">Page {currentPage} of {Math.ceil(filteredProducts.length / productsPerPage)}</span>
+                                <span className="page-info">Page {currentPage} of {Math.ceil(filteredProducts.length / productsPerPage) || 1}</span>
                             </div>
                             
                             {displayedProducts.length === 0 && isLoadingMore ? (
@@ -377,77 +381,77 @@ function Cart() {
                                 />
                             )}
                             
-                    {filteredProducts.length > 0 ? (
-                        <div className={`pagination-controls ${!hasMore ? 'no-more' : ''}`}>
-                        {currentPage > 1 && (
-                            <button 
-                                className="pagination-button"
-                                onClick={() => {
-                                    setIsLoadingMore(true);
-                                    setDisplayedProducts([]); // Clear current products
-                                    setTimeout(() => {
-                                        setCurrentPage(prevPage => prevPage - 1);
-                                    }, 500);
-                                }}
-                                disabled={isLoadingMore}
-                            >
-                                Previous Page
-                            </button>
-                        )}
+                            {filteredProducts.length > 0 ? (
+                                <div className={`pagination-controls ${!hasMore ? 'no-more' : ''}`}>
+                                    {currentPage > 1 && (
+                                        <button 
+                                            className="pagination-button"
+                                            onClick={() => {
+                                                setIsLoadingMore(true);
+                                                setDisplayedProducts([]); // Clear current products
+                                                setTimeout(() => {
+                                                    setCurrentPage(prevPage => prevPage - 1);
+                                                }, 500);
+                                            }}
+                                            disabled={isLoadingMore}
+                                        >
+                                            Previous Page
+                                        </button>
+                                    )}
 
-                        {hasMore && (
-                            <button 
-                                className={`pagination-button ${isLoadingMore ? 'loading' : ''}`}
-                                onClick={loadMoreProducts}
-                                disabled={!hasMore || isLoadingMore}
-                            >
-                                <span>
-                                    View More 
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M9 18l6-6-6-6"></path>
-                                    </svg>
-                                </span>
-                                <div className="loading-indicator">
-                                    <div className="loading-dots">
-                                        <div></div>
-                                        <div></div>
-                                        <div></div>
+                                    {hasMore && (
+                                        <button 
+                                            className={`pagination-button ${isLoadingMore ? 'loading' : ''}`}
+                                            onClick={loadMoreProducts}
+                                            disabled={!hasMore || isLoadingMore}
+                                        >
+                                            <span>
+                                                View More 
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M9 18l6-6-6-6"></path>
+                                                </svg>
+                                            </span>
+                                            <div className="loading-indicator">
+                                                <div className="loading-dots">
+                                                    <div></div>
+                                                    <div></div>
+                                                    <div></div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    )}
+
+                                    <div className="page-indicator">
+                                        Page {currentPage} of {Math.ceil(filteredProducts.length / productsPerPage)}
                                     </div>
                                 </div>
-                            </button>
-                        )}
-
-                        <div className="page-indicator">
-                            Page {currentPage} of {Math.ceil(filteredProducts.length / productsPerPage)}
-                        </div>
-                        </div>
-                    ) : (
-                        <div className="no-results">
-                            No products match your search criteria
-                        </div>
-                    )}
-
-                    {!hasMore && filteredProducts.length > 0 && !isLoadingMore && (
-                        <div className="no-more-results">
-                            You've reached the end of the product list
-                            {currentPage > 1 && (
-                                <button 
-                                    className="back-button"
-                                    onClick={() => {
-                                        setIsLoadingMore(true);
-                                        setDisplayedProducts([]); // Clear current products
-                                        setTimeout(() => {
-                                            setCurrentPage(prevPage => prevPage - 1);
-                                        }, 500);
-                                    }}
-                                >
-                                    Go back to previous page
-                                </button>
+                            ) : (
+                                <div className="no-results">
+                                    No products match your search criteria
+                                </div>
                             )}
-                        </div>
+
+                            {!hasMore && filteredProducts.length > 0 && !isLoadingMore && (
+                                <div className="no-more-results">
+                                    You've reached the end of the product list
+                                    {currentPage > 1 && (
+                                        <button 
+                                            className="back-button"
+                                            onClick={() => {
+                                                setIsLoadingMore(true);
+                                                setDisplayedProducts([]); // Clear current products
+                                                setTimeout(() => {
+                                                    setCurrentPage(prevPage => prevPage - 1);
+                                                }, 500);
+                                            }}
+                                        >
+                                            Go back to previous page
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </>
                     )}
-                    </>
-                )}
                 </div>
 
                 <UserCartComponent
@@ -457,8 +461,12 @@ function Cart() {
                     setCartCourses={setCartCourses}
                     clearCart={clearCart}
                     showCart={showCart}
+                    toggleCart={toggleCart} // Pass the toggle function
                 />
             </main>
+            
+            {/* Adding the Footer component here, outside of the main element */}
+            <Footer />
         </div>
     );
 }
