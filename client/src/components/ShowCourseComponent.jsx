@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) {
     // State to track which product is selected for the popup
@@ -7,18 +7,64 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
     const [quantity, setQuantity] = useState(1);
     // Add state to track image loading errors
     const [imageErrors, setImageErrors] = useState({});
+    // Reference for popup content
+    const popupContentRef = useRef(null);
     
     // Function to open the popup with the selected product
     const openProductPopup = (product) => {
         setSelectedProduct(product);
         // Reset quantity to 1 whenever a new popup is opened
         setQuantity(1);
+        // Add body class to prevent background scrolling
+        document.body.classList.add('popup-open');
     };
     
     // Function to close the popup
     const closeProductPopup = () => {
         setSelectedProduct(null);
+        // Remove body class to restore scrolling
+        document.body.classList.remove('popup-open');
     };
+
+    // Clean up on unmount
+    useEffect(() => {
+        return () => {
+            document.body.classList.remove('popup-open');
+        };
+    }, []);
+
+    // Add event listeners to handle closing popup
+    useEffect(() => {
+        // Only add listeners if popup is open
+        if (!selectedProduct) return;
+
+        // Handler for clicks outside the popup
+        const handleOutsideClick = (e) => {
+            // Check if click is outside popup content
+            if (popupContentRef.current && !popupContentRef.current.contains(e.target)) {
+                closeProductPopup();
+            }
+        };
+
+        // Handler for escape key
+        const handleEscKey = (e) => {
+            if (e.key === 'Escape') {
+                closeProductPopup();
+            }
+        };
+
+        // Add event listeners with capture phase to ensure they fire before other events
+        document.addEventListener('mousedown', handleOutsideClick, true);
+        document.addEventListener('touchstart', handleOutsideClick, true);
+        document.addEventListener('keydown', handleEscKey);
+
+        // Clean up listeners
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick, true);
+            document.removeEventListener('touchstart', handleOutsideClick, true);
+            document.removeEventListener('keydown', handleEscKey);
+        };
+    }, [selectedProduct]);
     
     // Function to update quantity
     const updateQuantity = (change) => {
@@ -93,9 +139,21 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
             
             {/* Product Popup */}
             {selectedProduct && (
-                <div className="product-popup-overlay" onClick={closeProductPopup}>
-                    <div className="product-popup-content" onClick={(e) => e.stopPropagation()}>
-                        <span className="close-popup" onClick={closeProductPopup}>&times;</span>
+                <div 
+                    className="product-popup-overlay"
+                    // No onClick here - we handle clicks in useEffect to ensure proper event handling
+                >
+                    <div 
+                        className="product-popup-content" 
+                        ref={popupContentRef}
+                    >
+                        <button 
+                            className="close-popup" 
+                            aria-label="Close popup"
+                            onClick={closeProductPopup}
+                        >
+                            &times;
+                        </button>
                         
                         <div className="popup-product-container">
                             {/* Image Section */}
@@ -175,14 +233,25 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                 
                                 {/* Quantity Selector */}
                                 <div className="quantity-selector">
-                                    <button onClick={() => updateQuantity(-1)}>-</button>
+                                    <button 
+                                        onClick={() => updateQuantity(-1)}
+                                        aria-label="Decrease quantity"
+                                    >
+                                        -
+                                    </button>
                                     <input 
                                         type="number" 
                                         value={quantity} 
                                         min="1" 
                                         onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                        aria-label="Product quantity"
                                     />
-                                    <button onClick={() => updateQuantity(1)}>+</button>
+                                    <button 
+                                        onClick={() => updateQuantity(1)}
+                                        aria-label="Increase quantity"
+                                    >
+                                        +
+                                    </button>
                                 </div>
                                 
                                 {/* Description */}
@@ -231,7 +300,6 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                             // Create a new product object with the selected quantity
                                             const productToAdd = {...selectedProduct};
                                             // Call the addCourseToCartFunction multiple times based on quantity
-                                            // or modify the Cart.jsx addCourseToCartFunction to handle quantity
                                             for (let i = 0; i < quantity; i++) {
                                                 addCourseToCartFunction(productToAdd);
                                             }
@@ -242,6 +310,7 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     </button>
                                     <button 
                                         className="popup-wishlist-button"
+                                        aria-label="Add to wishlist"
                                         // onClick={() => addToWishlist(selectedProduct)}
                                     >
                                         <i className="far fa-heart"></i>
