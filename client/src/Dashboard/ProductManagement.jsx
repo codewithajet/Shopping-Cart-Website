@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Filter, Package, Grid, List, X, ChevronLeft, ChevronRight, Save, Upload, AlertCircle, User } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Filter, Package, Grid, List, X, ChevronLeft, ChevronRight, Save, Upload, AlertCircle, User, XCircle } from 'lucide-react';
 
 // Product Management Dashboard Main Component
 const ProductManagement = () => {
@@ -141,7 +142,7 @@ const ProductManagement = () => {
       
       // Add form fields to FormData
       Object.keys(productData).forEach(key => {
-        if (key !== 'images' && key !== 'category_name') {
+        if (key !== 'images' && key !== 'imageFiles' && key !== 'category_name') {
           formData.append(key, productData[key]);
         }
       });
@@ -151,11 +152,10 @@ const ProductManagement = () => {
         for (let i = 0; i < productData.imageFiles.length; i++) {
           formData.append('images', productData.imageFiles[i]);
         }
-        
-        if (isEditing && !isCreating) {
-          formData.append('replace_images', 'true');
-        }
       }
+      
+      // Add a flag to indicate if we should replace existing images or add to them
+      formData.append('replace_images', productData.replaceImages ? 'true' : 'false');
       
       let response;
       if (isCreating) {
@@ -173,8 +173,6 @@ const ProductManagement = () => {
       }
       
       if (!response.ok) throw new Error('Failed to save product');
-      
-      const result = await response.json();
       
       // Refresh products list
       fetchProducts();
@@ -285,6 +283,11 @@ const ProductManagement = () => {
           <span>Stock: {product.stock_quantity}</span>
         </div>
         <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
+        {product.images && product.images.length > 1 && (
+          <div className="mt-2 text-xs text-blue-600">
+            + {product.images.length - 1} more {product.images.length === 2 ? 'image' : 'images'}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -297,6 +300,11 @@ const ProductManagement = () => {
           <ProductImage product={product} className="w-full h-full object-cover rounded" />
         </div>
         <span className="font-medium text-gray-800">{product.name}</span>
+        {product.images && product.images.length > 1 && (
+          <span className="ml-2 text-xs text-blue-600">
+            + {product.images.length - 1} more {product.images.length === 2 ? 'image' : 'images'}
+          </span>
+        )}
       </td>
       <td className="py-3 px-4 text-gray-600">{product.category_name}</td>
       <td className="py-3 px-4 font-medium text-blue-600">${parseFloat(product.price).toFixed(2)}</td>
@@ -323,11 +331,20 @@ const ProductManagement = () => {
   // Product form component for editing and creating products
   const ProductForm = ({ product, onSave, onCancel }) => {
     const [formData, setFormData] = useState({
-      ...product
+      ...product,
+      replaceImages: false
     });
     const [imageFiles, setImageFiles] = useState([]);
-    const [previewUrls, setPreviewUrls] = useState(product.images || []);
+    const [previewUrls, setPreviewUrls] = useState([]);
+    const [existingImages, setExistingImages] = useState(product.images || []);
     const [previewErrors, setPreviewErrors] = useState([]);
+    
+    useEffect(() => {
+      // Set up existing images
+      if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+        setExistingImages(product.images);
+      }
+    }, [product]);
     
     const handleChange = (e) => {
       const { name, value } = e.target;
@@ -340,12 +357,13 @@ const ProductManagement = () => {
     const handleImageChange = (e) => {
       if (e.target.files) {
         const filesArray = Array.from(e.target.files);
-        setImageFiles(filesArray);
+        // Combine with existing files if we aren't replacing
+        setImageFiles(prev => [...prev, ...filesArray]);
         
         // Create preview URLs
         const newPreviewUrls = filesArray.map(file => URL.createObjectURL(file));
-        setPreviewUrls(newPreviewUrls);
-        setPreviewErrors(new Array(newPreviewUrls.length).fill(false));
+        setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
+        setPreviewErrors(prev => [...prev, ...new Array(newPreviewUrls.length).fill(false)]);
       }
     };
     
@@ -365,12 +383,13 @@ const ProductManagement = () => {
       e.preventDefault();
       if (e.dataTransfer.files) {
         const filesArray = Array.from(e.dataTransfer.files);
-        setImageFiles(filesArray);
+        // Combine with existing files if we aren't replacing
+        setImageFiles(prev => [...prev, ...filesArray]);
         
         // Create preview URLs
         const newPreviewUrls = filesArray.map(file => URL.createObjectURL(file));
-        setPreviewUrls(newPreviewUrls);
-        setPreviewErrors(new Array(newPreviewUrls.length).fill(false));
+        setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
+        setPreviewErrors(prev => [...prev, ...new Array(newPreviewUrls.length).fill(false)]);
       }
     };
 
@@ -378,6 +397,30 @@ const ProductManagement = () => {
       const newPreviewErrors = [...previewErrors];
       newPreviewErrors[index] = true;
       setPreviewErrors(newPreviewErrors);
+    };
+    
+    const removeUploadedImage = (index) => {
+      // Remove from arrays
+      const newFiles = [...imageFiles];
+      newFiles.splice(index, 1);
+      setImageFiles(newFiles);
+      
+      const newUrls = [...previewUrls];
+      // Revoke the URL to avoid memory leaks
+      URL.revokeObjectURL(newUrls[index]);
+      newUrls.splice(index, 1);
+      setPreviewUrls(newUrls);
+      
+      const newErrors = [...previewErrors];
+      newErrors.splice(index, 1);
+      setPreviewErrors(newErrors);
+    };
+    
+    const toggleReplaceImages = () => {
+      setFormData({
+        ...formData,
+        replaceImages: !formData.replaceImages
+      });
     };
     
     return (
@@ -475,9 +518,53 @@ const ProductManagement = () => {
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Product Images
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Product Images
+                    </label>
+                    {!isCreating && existingImages.length > 0 && (
+                      <label className="inline-flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.replaceImages}
+                          onChange={toggleReplaceImages}
+                          className="form-checkbox h-4 w-4 text-blue-600"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Replace existing images</span>
+                      </label>
+                    )}
+                  </div>
+                  
+                  {/* Existing Images */}
+                  {!isCreating && existingImages.length > 0 && !formData.replaceImages && (
+                    <div className="mb-4">
+                      <div className="text-sm font-medium text-gray-600 mb-2">Existing Images:</div>
+                      <div className="grid grid-cols-4 gap-4">
+                        {existingImages.map((image, index) => (
+                          <div key={`existing-${index}`} className="relative h-24 rounded overflow-hidden border border-gray-200">
+                            <img 
+                              src={`${API_BASE_URL}${image}`}
+                              alt={`Existing ${index + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.parentNode.classList.add('bg-gray-200');
+                                e.target.src = '';
+                                e.target.classList.add('hidden');
+                                const fallback = document.createElement('div');
+                                fallback.className = 'w-full h-full flex items-center justify-center';
+                                const icon = document.createElement('div');
+                                icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+                                fallback.appendChild(icon);
+                                e.target.parentNode.appendChild(fallback);
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                   <div 
                     className="border-2 border-dashed border-gray-300 rounded-md p-6 flex flex-col items-center justify-center"
                     onDragOver={handleDragOver}
@@ -503,24 +590,35 @@ const ProductManagement = () => {
                     </label>
                   </div>
                   
-                  {/* Image Previews */}
+                  {/* New Image Previews */}
                   {previewUrls.length > 0 && (
                     <div className="mt-4">
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">Image Previews:</h3>
-                      <div className="grid grid-cols-3 gap-4">
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">
+                        {formData.replaceImages ? 'New Images:' : 'Additional Images:'}
+                      </h3>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                         {previewUrls.map((url, index) => (
-                          <div key={index} className="relative h-24 rounded overflow-hidden">
+                          <div key={`new-${index}`} className="relative h-24 rounded overflow-hidden border border-gray-200">
                             {previewErrors[index] ? (
                               <div className="w-full h-full flex items-center justify-center bg-gray-200">
                                 <User size={32} className="text-gray-400" />
                               </div>
                             ) : (
-                              <img 
-                                src={url.startsWith('blob:') ? url : `${API_BASE_URL}${url}`}
-                                alt={`Preview ${index + 1}`}
-                                className="w-full h-full object-cover"
-                                onError={() => handlePreviewError(index)}
-                              />
+                              <>
+                                <img 
+                                  src={url}
+                                  alt={`Preview ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={() => handlePreviewError(index)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeUploadedImage(index)}
+                                  className="absolute top-1 right-1 p-1 bg-white bg-opacity-75 rounded-full text-red-500 hover:text-red-700 hover:bg-opacity-100 transition-colors"
+                                >
+                                  <XCircle size={16} />
+                                </button>
+                              </>
                             )}
                           </div>
                         ))}

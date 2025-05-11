@@ -1,3 +1,4 @@
+import { ArrowLeft,ArrowRight,X,Minus,Plus,Heart,Clock,Signal,Package,Tag,Star,StarHalf} from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 
 function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) {
@@ -9,12 +10,16 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
     const [imageErrors, setImageErrors] = useState({});
     // Reference for popup content
     const popupContentRef = useRef(null);
+    // Add state to track current image index in the swiper
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
     
     // Function to open the popup with the selected product
     const openProductPopup = (product) => {
         setSelectedProduct(product);
         // Reset quantity to 1 whenever a new popup is opened
         setQuantity(1);
+        // Reset current image index to 0
+        setCurrentImageIndex(0);
         // Add body class to prevent background scrolling
         document.body.classList.add('popup-open');
     };
@@ -78,7 +83,49 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
             [`${productId}-${imageIndex}`]: true
         }));
     };
+
+    // Function to navigate to previous image
+    const prevImage = () => {
+        if (!selectedProduct || !selectedProduct.images || selectedProduct.images.length <= 1) return;
+        
+        setCurrentImageIndex(prevIndex => 
+            prevIndex === 0 ? selectedProduct.images.length - 1 : prevIndex - 1
+        );
+    };
+
+    // Function to navigate to next image
+    const nextImage = () => {
+        if (!selectedProduct || !selectedProduct.images || selectedProduct.images.length <= 1) return;
+        
+        setCurrentImageIndex(prevIndex => 
+            prevIndex === selectedProduct.images.length - 1 ? 0 : prevIndex + 1
+        );
+    };
+
+    // Function to select a specific image by index
+    const selectImage = (index) => {
+        setCurrentImageIndex(index);
+    };
     
+    // Render star rating component using Lucide icons
+    const renderStarRating = (rating) => {
+        const fullStars = Math.floor(rating);
+        const hasHalfStar = rating % 1 >= 0.5;
+        const stars = [];
+        
+        for (let i = 0; i < 5; i++) {
+            if (i < fullStars) {
+                stars.push(<Star key={i} className="filled-star" size={16} fill="currentColor" />);
+            } else if (i === fullStars && hasHalfStar) {
+                stars.push(<StarHalf key={i} className="half-star" size={16} fill="currentColor" />);
+            } else {
+                stars.push(<Star key={i} className="empty-star" size={16} />);
+            }
+        }
+        
+        return stars;
+    };
+
     return (
         <div className="product-list">
             {filterCourseFunction.length === 0 ? (
@@ -137,12 +184,9 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                 ))
             )}
             
-            {/* Product Popup */}
+            {/* Product Popup with Enhanced Image Swiper */}
             {selectedProduct && (
-                <div 
-                    className="product-popup-overlay"
-                    // No onClick here - we handle clicks in useEffect to ensure proper event handling
-                >
+                <div className="product-popup-overlay">
                     <div 
                         className="product-popup-content" 
                         ref={popupContentRef}
@@ -152,42 +196,94 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                             aria-label="Close popup"
                             onClick={closeProductPopup}
                         >
-                            &times;
+                            <X size={24} />
                         </button>
                         
                         <div className="popup-product-container">
-                            {/* Image Section */}
+                            {/* Enhanced Image Section with Swiper */}
                             <div className="popup-product-images">
                                 {selectedProduct.specialOffer && (
                                     <span className="special-offer-label">Special Offer</span>
                                 )}
                                 
-                                <div className="image-nav">
-                                    <button className="image-nav-button">
-                                        <i className="fas fa-chevron-left"></i>
+                                {/* Main Image with Navigation Controls */}
+                                <div className="main-image-container">
+                                    {/* Navigation buttons */}
+                                    <button 
+                                        className="image-nav-button prev"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            prevImage();
+                                        }}
+                                        disabled={!selectedProduct.images || selectedProduct.images.length <= 1}
+                                        aria-label="Previous image"
+                                    >
+                                        <ArrowLeft size={20} />
                                     </button>
-                                    <button className="image-nav-button">
-                                        <i className="fas fa-chevron-right"></i>
+                                    
+                                    {/* Main image display */}
+                                    {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                                        <img 
+                                            src={`http://localhost:5000${selectedProduct.images[currentImageIndex].startsWith('/') ? '' : '/'}${selectedProduct.images[currentImageIndex]}`}
+                                            alt={`${selectedProduct.name} - image ${currentImageIndex + 1}`}
+                                            className="popup-product-image"
+                                            onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src = "/src/assets/avatar.png";
+                                            }}
+                                        />
+                                    ) : (
+                                        <img 
+                                            src="/src/assets/avatar.png"
+                                            alt={selectedProduct.name}
+                                            className="popup-product-image"
+                                        />
+                                    )}
+                                    
+                                    <button 
+                                        className="image-nav-button next"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            nextImage();
+                                        }}
+                                        disabled={!selectedProduct.images || selectedProduct.images.length <= 1}
+                                        aria-label="Next image"
+                                    >
+                                        <ArrowRight size={20} />
                                     </button>
                                 </div>
                                 
-                                {/* Corrected image display in popup */}
-                                {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                                    <img 
-                                        src={`http://localhost:5000${selectedProduct.images[0].startsWith('/') ? '' : '/'}${selectedProduct.images[0]}`}
-                                        alt={selectedProduct.name}
-                                        className="popup-product-image"
-                                        onError={(e) => {
-                                            e.target.onerror = null;
-                                            e.target.src = "/src/assets/avatar.png";
-                                        }}
-                                    />
-                                ) : (
-                                    <img 
-                                        src="/src/assets/avatar.png"
-                                        alt={selectedProduct.name}
-                                        className="popup-product-image"
-                                    />
+                                {/* Thumbnail Navigation */}
+                                {selectedProduct.images && selectedProduct.images.length > 1 && (
+                                    <div className="image-thumbnails">
+                                        {selectedProduct.images.map((image, index) => (
+                                            <div 
+                                                key={index} 
+                                                className={`thumbnail-container ${index === currentImageIndex ? 'active' : ''}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    selectImage(index);
+                                                }}
+                                            >
+                                                <img 
+                                                    src={`http://localhost:5000${image.startsWith('/') ? '' : '/'}${image}`}
+                                                    alt={`${selectedProduct.name} thumbnail ${index + 1}`}
+                                                    className="thumbnail-image"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = "/src/assets/avatar.png";
+                                                    }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                {/* Image counter indicator */}
+                                {selectedProduct.images && selectedProduct.images.length > 1 && (
+                                    <div className="image-counter">
+                                        {currentImageIndex + 1} / {selectedProduct.images.length}
+                                    </div>
                                 )}
                             </div>
                             
@@ -195,16 +291,11 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                             <div className="popup-product-content">
                                 <h2>{selectedProduct.name}</h2>
                                 
-                                {/* Rating */}
+                                {/* Rating with Lucide Star icons */}
                                 {selectedProduct.rating && (
                                     <div className="popup-product-rating">
                                         <div className="stars">
-                                            {[...Array(5)].map((_, i) => (
-                                                <i 
-                                                    key={i} 
-                                                    className={`fas fa-star${i < Math.floor(selectedProduct.rating) ? '' : '-half-alt'}`}
-                                                ></i>
-                                            ))}
+                                            {renderStarRating(selectedProduct.rating)}
                                         </div>
                                         <span className="review-count">({selectedProduct.reviewCount || 0} reviews)</span>
                                     </div>
@@ -231,13 +322,13 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     </div>
                                 )}
                                 
-                                {/* Quantity Selector */}
+                                {/* Quantity Selector with Lucide icons */}
                                 <div className="quantity-selector">
                                     <button 
                                         onClick={() => updateQuantity(-1)}
                                         aria-label="Decrease quantity"
                                     >
-                                        -
+                                        <Minus size={16} />
                                     </button>
                                     <input 
                                         type="number" 
@@ -250,7 +341,7 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                         onClick={() => updateQuantity(1)}
                                         aria-label="Increase quantity"
                                     >
-                                        +
+                                        <Plus size={16} />
                                     </button>
                                 </div>
                                 
@@ -259,11 +350,13 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     <p>{selectedProduct.description}</p>
                                 </div>
                                 
-                                {/* Additional Details */}
+                                {/* Additional Details with Lucide icons */}
                                 <div className="popup-product-details">
                                     {selectedProduct.instructor && (
                                         <div className="detail-item">
-                                            <span className="icon"><i className="fas fa-chalkboard-teacher"></i></span>
+                                            <span className="icon">
+                                                {/* <ChalkboardPencil size={18} /> */}
+                                            </span>
                                             <div className="content">
                                                 <h4>Instructor</h4>
                                                 <p>{selectedProduct.instructor}</p>
@@ -273,7 +366,9 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     
                                     {selectedProduct.duration && (
                                         <div className="detail-item">
-                                            <span className="icon"><i className="far fa-clock"></i></span>
+                                            <span className="icon">
+                                                <Clock size={18} />
+                                            </span>
                                             <div className="content">
                                                 <h4>Duration</h4>
                                                 <p>{selectedProduct.duration}</p>
@@ -283,16 +378,42 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     
                                     {selectedProduct.level && (
                                         <div className="detail-item">
-                                            <span className="icon"><i className="fas fa-signal"></i></span>
+                                            <span className="icon">
+                                                <Signal size={18} />
+                                            </span>
                                             <div className="content">
                                                 <h4>Skill Level</h4>
                                                 <p>{selectedProduct.level}</p>
                                             </div>
                                         </div>
                                     )}
+                                    
+                                    {selectedProduct.stock_quantity && (
+                                        <div className="detail-item">
+                                            <span className="icon">
+                                                <Package size={18} />
+                                            </span>
+                                            <div className="content">
+                                                <h4>In Stock</h4>
+                                                <p>{selectedProduct.stock_quantity} available</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedProduct.category_name && (
+                                        <div className="detail-item">
+                                            <span className="icon">
+                                                <Tag size={18} />
+                                            </span>
+                                            <div className="content">
+                                                <h4>Category</h4>
+                                                <p>{selectedProduct.category_name}</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 
-                                {/* Action Buttons */}
+                                {/* Action Buttons with Lucide icons */}
                                 <div className="popup-actions">
                                     <button
                                         className="popup-add-to-cart-button"
@@ -311,9 +432,8 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     <button 
                                         className="popup-wishlist-button"
                                         aria-label="Add to wishlist"
-                                        // onClick={() => addToWishlist(selectedProduct)}
                                     >
-                                        <i className="far fa-heart"></i>
+                                        <Heart size={18} />
                                     </button>
                                 </div>
                             </div>
