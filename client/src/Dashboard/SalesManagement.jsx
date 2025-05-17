@@ -13,7 +13,7 @@
     // Fetch sales and products from the backend
     const fetchSales = async () => {
         try {
-        const response = await fetch('http://localhost:5000/sales');
+        const response = await fetch('https://shopping-cart-5wj4.onrender.com/sales');
         const data = await response.json();
         setSales(data);
         } catch (err) {
@@ -23,7 +23,7 @@
 
     const fetchProducts = async () => {
         try {
-        const response = await fetch('http://localhost:5000/products');
+        const response = await fetch('https://shopping-cart-5wj4.onrender.com/products');
         const data = await response.json();
         setProducts(data);
         } catch (err) {
@@ -39,7 +39,7 @@
         }
 
         try {
-        const response = await fetch('http://localhost:5000/sales', {
+        const response = await fetch('https://shopping-cart-5wj4.onrender.com/sales', {
             method: 'POST',
             headers: {
             'Content-Type': 'application/json',
@@ -61,7 +61,7 @@
     // Delete a sale
     const deleteSale = async (id) => {
         try {
-        const response = await fetch(`http://localhost:5000/sales/${id}`, {
+        const response = await fetch(`https://shopping-cart-5wj4.onrender.com/sales/${id}`, {
             method: 'DELETE',
         });
 

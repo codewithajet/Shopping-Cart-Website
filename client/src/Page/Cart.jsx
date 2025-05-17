@@ -34,7 +34,7 @@ function Cart() {
     const fetchProducts = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('http://localhost:5000/products');
+            const response = await fetch('https://shopping-cart-5wj4.onrender.com/products');
             const data = await response.json();
             setProducts(data);
             setFilteredProducts(data); // Initialize filtered products with all products

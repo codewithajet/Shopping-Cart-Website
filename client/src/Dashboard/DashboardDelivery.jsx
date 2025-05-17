@@ -78,7 +78,7 @@ const DeliveryDashboard = () => {
         if (value) queryParams.append(key, value);
       });
       
-      const response = await fetch(`http://127.0.0.1:5000/deliveries?${queryParams.toString()}`);
+      const response = await fetch(`https://shopping-cart-5wj4.onrender.com/deliveries?${queryParams.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch deliveries');
       }
@@ -139,7 +139,7 @@ const DeliveryDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://127.0.0.1:5000/orders/${formData.order_number}/delivery`, {
+      const response = await fetch(`https://shopping-cart-5wj4.onrender.com/orders/${formData.order_number}/delivery`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,7 +180,7 @@ const DeliveryDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://127.0.0.1:5000/deliveries/${selectedDelivery.id}/events`, {
+      const response = await fetch(`https://shopping-cart-5wj4.onrender.com/deliveries/${selectedDelivery.id}/events`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

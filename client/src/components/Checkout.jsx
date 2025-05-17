@@ -119,7 +119,7 @@ const Checkout = ({ cartCourses, totalAmount, clearCart }) => {
     const [cityId, setCityId] = useState(0);
     
     // API base URL from environment variable
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://shopping-cart-5wj4.onrender.com';
     
     // Delivery options
     const deliveryOptions = useMemo(() => [

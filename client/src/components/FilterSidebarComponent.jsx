@@ -28,7 +28,7 @@ function FilterSidebarComponent({ products, applyFilters }) {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await fetch('http://localhost:5000/categories');
+                const response = await fetch('https://shopping-cart-5wj4.onrender.com/categories');
                 if (!response.ok) {
                     throw new Error('Failed to fetch categories');
                 }

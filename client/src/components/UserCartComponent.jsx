@@ -50,7 +50,7 @@ function UserCartComponent({
                                             {item.product.images && item.product.images.map((image, index) => (
                                                 <img
                                                     key={index}
-                                                    src={`http://localhost:5000/${image}`}
+                                                    src={`https://shopping-cart-5wj4.onrender.com/${image}`}
                                                     alt={`${item.product.name} ${index + 1}`}
                                                     className="product-image"
                                                 />

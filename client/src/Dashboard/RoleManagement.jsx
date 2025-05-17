@@ -11,7 +11,7 @@ const RoleManagement = () => {
   // Fetch roles from the backend
   const fetchRoles = async () => {
     try {
-      const response = await fetch('http://localhost:5000/roles');
+      const response = await fetch('https://shopping-cart-5wj4.onrender.com/roles');
       const data = await response.json();
       setRoles(data);
     } catch (err) {
@@ -27,7 +27,7 @@ const RoleManagement = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/roles', {
+      const response = await fetch('https://shopping-cart-5wj4.onrender.com/roles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,7 +49,7 @@ const RoleManagement = () => {
   // Delete a role
   const deleteRole = async (id) => {
     try {
-      const response = await fetch(`http://localhost:5000/roles/${id}`, {
+      const response = await fetch(`https://shopping-cart-5wj4.onrender.com/roles/${id}`, {
         method: 'DELETE',
       });
 

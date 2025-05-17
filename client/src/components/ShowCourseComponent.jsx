@@ -173,7 +173,7 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     ) : (
                                         <img
                                             key={index}
-                                            src={`http://localhost:5000${image.startsWith('/') ? '' : '/'}${image}`}
+                                            src={`https://shopping-cart-5wj4.onrender.com${image.startsWith('/') ? '' : '/'}${image}`}
                                             alt={`${product.name} ${index + 1}`}
                                             className="product-image"
                                             onError={() => handleImageError(product.id, index)}
@@ -245,7 +245,7 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     <div className="rotatable-image-container">
                                         {selectedProduct.images && selectedProduct.images.length > 0 ? (
                                             <img 
-                                                src={`http://localhost:5000${selectedProduct.images[currentImageIndex].startsWith('/') ? '' : '/'}${selectedProduct.images[currentImageIndex]}`}
+                                                src={`https://shopping-cart-5wj4.onrender.com${selectedProduct.images[currentImageIndex].startsWith('/') ? '' : '/'}${selectedProduct.images[currentImageIndex]}`}
                                                 alt={`${selectedProduct.name} - image ${currentImageIndex + 1}`}
                                                 className="popup-product-image"
                                                 style={{ 
@@ -317,7 +317,7 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                                 }}
                                             >
                                                 <img 
-                                                    src={`http://localhost:5000${image.startsWith('/') ? '' : '/'}${image}`}
+                                                    src={`https://shopping-cart-5wj4.onrender.com${image.startsWith('/') ? '' : '/'}${image}`}
                                                     alt={`${selectedProduct.name} thumbnail ${index + 1}`}
                                                     className="thumbnail-image"
                                                     onError={(e) => {

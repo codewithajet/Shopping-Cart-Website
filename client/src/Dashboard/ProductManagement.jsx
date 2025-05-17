@@ -24,7 +24,7 @@ const ProductManagement = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [notification, setNotification] = useState(null);
   
-  const API_BASE_URL = 'http://localhost:5000'; // Update with your actual API URL
+  const API_BASE_URL = 'https://shopping-cart-5wj4.onrender.com'; // Update with your actual API URL
 
   // Fetch products on component mount
   useEffect(() => {

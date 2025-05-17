@@ -16,7 +16,7 @@ const CategoryManagement = () => {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://127.0.0.1:5000/categories');
+      const response = await fetch('https://shopping-cart-5wj4.onrender.com/categories');
       if (!response.ok) throw new Error('Failed to fetch categories');
       const data = await response.json();
       setCategories(data.data || []);
@@ -36,7 +36,7 @@ const CategoryManagement = () => {
     
     setIsAdding(true);
     try {
-      const response = await fetch('http://127.0.0.1:5000/categories', {
+      const response = await fetch('https://shopping-cart-5wj4.onrender.com/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -70,7 +70,7 @@ const CategoryManagement = () => {
   // Update category
   const updateCategory = async (id, updatedData) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/categories/${id}`, {
+      const response = await fetch(`https://shopping-cart-5wj4.onrender.com/categories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
@@ -101,7 +101,7 @@ const CategoryManagement = () => {
     if (!window.confirm('Are you sure you want to delete this category?')) return;
     
     try {
-      const response = await fetch(`http://127.0.0.1:5000/categories/${id}`, {
+      const response = await fetch(`https://shopping-cart-5wj4.onrender.com/categories/${id}`, {
         method: 'DELETE'
       });
       
@@ -127,7 +127,7 @@ const CategoryManagement = () => {
   // Get specific category
   const getCategory = async (id) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/categories/${id}`);
+      const response = await fetch(`https://shopping-cart-5wj4.onrender.com/categories/${id}`);
       
       if (!response.ok) throw new Error('Failed to fetch category details');
       
