@@ -449,7 +449,7 @@ const OrderManagement = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">Price Range</label>
                         <div className="flex items-center space-x-2">
                         <div className="flex-1">
-                            <label className="block text-xs text-gray-500 mb-1">Min ($)</label>
+                            <label className="block text-xs text-gray-500 mb-1">Min (#)</label>
                             <input
                             type="number"
                             min="0"
@@ -461,7 +461,7 @@ const OrderManagement = ({
                             />
                         </div>
                         <div className="flex-1">
-                            <label className="block text-xs text-gray-500 mb-1">Max ($)</label>
+                            <label className="block text-xs text-gray-500 mb-1">Max (#)</label>
                             <input
                             type="number"
                             min="0"
@@ -515,13 +515,13 @@ const OrderManagement = ({
                             )}
                             {priceRange.min !== '' && (
                                 <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 flex items-center">
-                                Min: ${priceRange.min}
+                                Min: #{priceRange.min}
                                 <X className="ml-1 h-3 w-3 cursor-pointer" onClick={() => setPriceRange({...priceRange, min: ''})} />
                                 </span>
                             )}
                             {priceRange.max !== '' && (
                                 <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 flex items-center">
-                                Max: ${priceRange.max}
+                                Max: #{priceRange.max}
                                 <X className="ml-1 h-3 w-3 cursor-pointer" onClick={() => setPriceRange({...priceRange, max: ''})} />
                                 </span>
                             )}

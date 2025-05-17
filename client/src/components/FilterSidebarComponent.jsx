@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+// Helper function to format number with commas for Naira
+function formatNaira(amount) {
+    if (isNaN(amount)) return amount;
+    return Number(amount).toLocaleString('en-NG');
+}
+
 function FilterSidebarComponent({ products, applyFilters }) {
     // State for all filter options
     const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
@@ -28,7 +34,7 @@ function FilterSidebarComponent({ products, applyFilters }) {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await fetch('https://shopping-cart-5wj4.onrender.com/categories');
+                const response = await fetch('http://localhost:5000/categories');
                 if (!response.ok) {
                     throw new Error('Failed to fetch categories');
                 }
@@ -206,7 +212,7 @@ function FilterSidebarComponent({ products, applyFilters }) {
                     <h3>Price Range</h3>
                     <div className="price-inputs">
                         <div className="price-input">
-                            <label htmlFor="min-price">Min ($)</label>
+                            <label htmlFor="min-price">Min (₦)</label>
                             <input 
                                 type="number" 
                                 id="min-price"
@@ -217,7 +223,7 @@ function FilterSidebarComponent({ products, applyFilters }) {
                             />
                         </div>
                         <div className="price-input">
-                            <label htmlFor="max-price">Max ($)</label>
+                            <label htmlFor="max-price">Max (₦)</label>
                             <input 
                                 type="number" 
                                 id="max-price"
@@ -226,6 +232,11 @@ function FilterSidebarComponent({ products, applyFilters }) {
                                 min={priceRange.min}
                             />
                         </div>
+                    </div>
+                    <div className="price-display">
+                        <span>
+                            ₦{formatNaira(priceRange.min)} - ₦{formatNaira(priceRange.max)}
+                        </span>
                     </div>
                     <div className="price-slider">
                         <input

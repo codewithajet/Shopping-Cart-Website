@@ -100,7 +100,7 @@ const Dashboard = () => {
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-[#718096] font-medium">Total Revenue</p>
-                <h2 className="text-3xl font-bold text-[#2d3748]">$12,450</h2>
+                <h2 className="text-3xl font-bold text-[#2d3748]">#12,450</h2>
                 <p className="text-[#4caf50] text-sm font-medium mt-1 flex items-center">
                   <span className="text-lg mr-1">↑</span> 10.3% from last month
                 </p>
@@ -201,7 +201,7 @@ const Dashboard = () => {
               </div>
               <h3 className="font-medium text-[#2d3748]">Wireless Earbuds</h3>
               <div className="flex justify-between items-center mt-2">
-                <span className="font-bold text-[#4a6fa5]">$89.99</span>
+                <span className="font-bold text-[#4a6fa5]">#89.99</span>
                 <span className="text-[#718096] text-sm">234 sold</span>
               </div>
             </div>
@@ -211,7 +211,7 @@ const Dashboard = () => {
               </div>
               <h3 className="font-medium text-[#2d3748]">Smart Watch</h3>
               <div className="flex justify-between items-center mt-2">
-                <span className="font-bold text-[#ff9a3c]">$199.99</span>
+                <span className="font-bold text-[#ff9a3c]">#199.99</span>
                 <span className="text-[#718096] text-sm">189 sold</span>
               </div>
             </div>
@@ -221,7 +221,7 @@ const Dashboard = () => {
               </div>
               <h3 className="font-medium text-[#2d3748]">Bluetooth Speaker</h3>
               <div className="flex justify-between items-center mt-2">
-                <span className="font-bold text-[#ff6b6b]">$129.99</span>
+                <span className="font-bold text-[#ff6b6b]">#129.99</span>
                 <span className="text-[#718096] text-sm">156 sold</span>
               </div>
             </div>
@@ -231,7 +231,7 @@ const Dashboard = () => {
               </div>
               <h3 className="font-medium text-[#2d3748]">Smartphone</h3>
               <div className="flex justify-between items-center mt-2">
-                <span className="font-bold text-[#4caf50]">$699.99</span>
+                <span className="font-bold text-[#4caf50]">#699.99</span>
                 <span className="text-[#718096] text-sm">128 sold</span>
               </div>
             </div>
@@ -271,7 +271,7 @@ const Dashboard = () => {
                     </div>
                   </td>
                   <td className="p-3 text-[#718096]">Mar 28, 2025</td>
-                  <td className="p-3 font-medium">$99.99</td>
+                  <td className="p-3 font-medium">#99.99</td>
                   <td className="p-3">
                     <span className="flex items-center gap-1">
                       <span className="w-3 h-3 bg-[#4caf50] rounded-full"></span>
@@ -293,7 +293,7 @@ const Dashboard = () => {
                     </div>
                   </td>
                   <td className="p-3 text-[#718096]">Mar 27, 2025</td>
-                  <td className="p-3 font-medium">$49.99</td>
+                  <td className="p-3 font-medium">#49.99</td>
                   <td className="p-3">
                     <span className="flex items-center gap-1">
                       <span className="w-3 h-3 bg-[#ff9a3c] rounded-full"></span>
@@ -315,7 +315,7 @@ const Dashboard = () => {
                     </div>
                   </td>
                   <td className="p-3 text-[#718096]">Mar 26, 2025</td>
-                  <td className="p-3 font-medium">$199.99</td>
+                  <td className="p-3 font-medium">#199.99</td>
                   <td className="p-3">
                     <span className="flex items-center gap-1">
                       <span className="w-3 h-3 bg-[#4a6fa5] rounded-full"></span>
@@ -337,7 +337,7 @@ const Dashboard = () => {
                     </div>
                   </td>
                   <td className="p-3 text-[#718096]">Mar 25, 2025</td>
-                  <td className="p-3 font-medium">$149.99</td>
+                  <td className="p-3 font-medium">#149.99</td>
                   <td className="p-3">
                     <span className="flex items-center gap-1">
                       <span className="w-3 h-3 bg-[#f44336] rounded-full"></span>

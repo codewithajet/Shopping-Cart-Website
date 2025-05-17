@@ -1,73 +1,62 @@
 import { ArrowLeft, ArrowRight, X, Minus, Plus, Heart, Clock, Signal, Package, Tag, Star, StarHalf, RotateCcw } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 
+// Helper function to format number with commas for Naira
+function formatNaira(amount) {
+    if (isNaN(amount)) return amount;
+    // Remove decimals for Naira if you want: return Number(amount).toLocaleString('en-NG', { maximumFractionDigits: 0 });
+    return Number(amount).toLocaleString('en-NG');
+}
+
 function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) {
     // State to track which product is selected for the popup
     const [selectedProduct, setSelectedProduct] = useState(null);
     // Add state for quantity in popup
     const [quantity, setQuantity] = useState(1);
-    // Add state to track image loading errors
-    const [imageErrors, setImageErrors] = useState({});
     // Reference for popup content
     const popupContentRef = useRef(null);
     // Add state to track current image index in the swiper
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    // Add state to track image rotation
-    const [imageRotation, setImageRotation] = useState(0);
     
     // Function to open the popup with the selected product
     const openProductPopup = (product) => {
         setSelectedProduct(product);
-        // Reset quantity to 1 whenever a new popup is opened
         setQuantity(1);
-        // Reset current image index to 0
         setCurrentImageIndex(0);
-        // Reset image rotation
-        setImageRotation(0);
-        // Add body class to prevent background scrolling
         document.body.classList.add('popup-open');
     };
     
     // Function to close the popup
     const closeProductPopup = () => {
         setSelectedProduct(null);
-        // Remove body class to restore scrolling
         document.body.classList.remove('popup-open');
     };
 
-    // Clean up on unmount
     useEffect(() => {
         return () => {
             document.body.classList.remove('popup-open');
         };
     }, []);
 
-    // Add event listeners to handle closing popup
     useEffect(() => {
-        // Only add listeners if popup is open
         if (!selectedProduct) return;
 
-        // Handler for clicks outside the popup
         const handleOutsideClick = (e) => {
-            // Check if click is outside popup content
             if (popupContentRef.current && !popupContentRef.current.contains(e.target)) {
                 closeProductPopup();
             }
         };
 
-        // Handler for escape key
         const handleEscKey = (e) => {
             if (e.key === 'Escape') {
                 closeProductPopup();
             }
         };
 
-        // Add event listeners with capture phase to ensure they fire before other events
         document.addEventListener('mousedown', handleOutsideClick, true);
         document.addEventListener('touchstart', handleOutsideClick, true);
         document.addEventListener('keydown', handleEscKey);
 
-        // Clean up listeners
         return () => {
             document.removeEventListener('mousedown', handleOutsideClick, true);
             document.removeEventListener('touchstart', handleOutsideClick, true);
@@ -75,56 +64,26 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
         };
     }, [selectedProduct]);
     
-    // Function to update quantity
     const updateQuantity = (change) => {
         setQuantity(prevQuantity => Math.max(1, prevQuantity + change));
     };
-    
-    // Function to handle image errors
-    const handleImageError = (productId, imageIndex) => {
-        setImageErrors(prev => ({
-            ...prev,
-            [`${productId}-${imageIndex}`]: true
-        }));
-    };
 
-    // Function to navigate to previous image
     const prevImage = () => {
         if (!selectedProduct || !selectedProduct.images || selectedProduct.images.length <= 1) return;
-        
         setCurrentImageIndex(prevIndex => 
             prevIndex === 0 ? selectedProduct.images.length - 1 : prevIndex - 1
         );
-        // Reset rotation when changing images
-        setImageRotation(0);
     };
 
-    // Function to navigate to next image
     const nextImage = () => {
         if (!selectedProduct || !selectedProduct.images || selectedProduct.images.length <= 1) return;
-        
         setCurrentImageIndex(prevIndex => 
             prevIndex === selectedProduct.images.length - 1 ? 0 : prevIndex + 1
         );
-        // Reset rotation when changing images
-        setImageRotation(0);
     };
 
-    // Function to select a specific image by index
     const selectImage = (index) => {
         setCurrentImageIndex(index);
-        // Reset rotation when changing images
-        setImageRotation(0);
-    };
-    
-    // Function to rotate the current image
-    const rotateImage = () => {
-        setImageRotation(prevRotation => (prevRotation + 90) % 360);
-    };
-    
-    // Function to reset image rotation
-    const resetRotation = () => {
-        setImageRotation(0);
     };
     
     // Render star rating component using Lucide icons
@@ -159,27 +118,18 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                         key={product.id}
                         onClick={() => openProductPopup(product)}
                     >
-                        {/* Display product images with fallback */}
-                        <div className="product-images">
+                        {/* Display only the first product image with fallback */}
+                        <div className="product-image-container">
                             {product.images && product.images.length > 0 ? (
-                                product.images.map((image, index) => (
-                                    imageErrors[`${product.id}-${index}`] ? (
-                                        <img
-                                            key={index}
-                                            src="/src/assets/avatar.png"
-                                            alt={`${product.name} fallback`}
-                                            className="product-image"
-                                        />
-                                    ) : (
-                                        <img
-                                            key={index}
-                                            src={`https://shopping-cart-5wj4.onrender.com${image.startsWith('/') ? '' : '/'}${image}`}
-                                            alt={`${product.name} ${index + 1}`}
-                                            className="product-image"
-                                            onError={() => handleImageError(product.id, index)}
-                                        />
-                                    )
-                                ))
+                                <img
+                                    src={`http://localhost:5000${product.images[0].startsWith('/') ? '' : '/'}${product.images[0]}`}
+                                    alt={`${product.name}`}
+                                    className="product-image"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = "/src/assets/avatar.png";
+                                    }}
+                                />
                             ) : (
                                 <img
                                     src="/src/assets/avatar.png"
@@ -189,16 +139,16 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                             )}
                         </div>
                         <h2>{product.name}</h2>
-                        <p className="product-price">Price: ${product.price}</p>
+                        <p className="product-price">Price: ₦{formatNaira(product.price)}</p>
                         <p className="product-description">{product.description}</p>
                         <button
                             className="add-to-cart-button"
                             onClick={(e) => {
-                                e.stopPropagation(); // Prevent triggering the parent div's onClick
+                                e.stopPropagation();
                                 addCourseToCartFunction(product);
                             }}
                         >
-                            Add to Shopping Cart
+                            Add to cart
                         </button>
                     </div>
                 ))
@@ -220,15 +170,11 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                         </button>
                         
                         <div className="popup-product-container">
-                            {/* Enhanced Image Section with Swiper */}
                             <div className="popup-product-images">
                                 {selectedProduct.specialOffer && (
                                     <span className="special-offer-label">Special Offer</span>
                                 )}
-                                
-                                {/* Main Image with Navigation Controls */}
                                 <div className="main-image-container">
-                                    {/* Navigation buttons */}
                                     <button 
                                         className="image-nav-button prev"
                                         onClick={(e) => {
@@ -240,19 +186,12 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                     >
                                         <ArrowLeft size={20} />
                                     </button>
-                                    
-                                    {/* Main image display with rotation */}
                                     <div className="rotatable-image-container">
                                         {selectedProduct.images && selectedProduct.images.length > 0 ? (
                                             <img 
-                                                src={`https://shopping-cart-5wj4.onrender.com${selectedProduct.images[currentImageIndex].startsWith('/') ? '' : '/'}${selectedProduct.images[currentImageIndex]}`}
+                                                src={`http://localhost:5000${selectedProduct.images[currentImageIndex].startsWith('/') ? '' : '/'}${selectedProduct.images[currentImageIndex]}`}
                                                 alt={`${selectedProduct.name} - image ${currentImageIndex + 1}`}
                                                 className="popup-product-image"
-                                                style={{ 
-                                                    transform: `rotate(${imageRotation}deg)`,
-                                                    transition: 'transform 0.5s ease'
-                                                }}
-                                                onClick={rotateImage}
                                                 onError={(e) => {
                                                     e.target.onerror = null;
                                                     e.target.src = "/src/assets/avatar.png";
@@ -263,34 +202,9 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                                 src="/src/assets/avatar.png"
                                                 alt={selectedProduct.name}
                                                 className="popup-product-image"
-                                                style={{ 
-                                                    transform: `rotate(${imageRotation}deg)`,
-                                                    transition: 'transform 0.5s ease'
-                                                }}
-                                                onClick={rotateImage}
                                             />
                                         )}
-                                        
-                                        {/* Reset rotation button */}
-                                        {imageRotation !== 0 && (
-                                            <button 
-                                                className="reset-rotation-button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    resetRotation();
-                                                }}
-                                                aria-label="Reset image rotation"
-                                            >
-                                                <RotateCcw size={16} />
-                                            </button>
-                                        )}
-                                        
-                                        {/* Rotation instruction tooltip */}
-                                        <div className="rotation-tooltip">
-                                            Click image to rotate
-                                        </div>
                                     </div>
-                                    
                                     <button 
                                         className="image-nav-button next"
                                         onClick={(e) => {
@@ -303,8 +217,6 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                         <ArrowRight size={20} />
                                     </button>
                                 </div>
-                                
-                                {/* Thumbnail Navigation */}
                                 {selectedProduct.images && selectedProduct.images.length > 1 && (
                                     <div className="image-thumbnails">
                                         {selectedProduct.images.map((image, index) => (
@@ -317,7 +229,7 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                                 }}
                                             >
                                                 <img 
-                                                    src={`https://shopping-cart-5wj4.onrender.com${image.startsWith('/') ? '' : '/'}${image}`}
+                                                    src={`http://localhost:5000${image.startsWith('/') ? '' : '/'}${image}`}
                                                     alt={`${selectedProduct.name} thumbnail ${index + 1}`}
                                                     className="thumbnail-image"
                                                     onError={(e) => {
@@ -329,8 +241,6 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                         ))}
                                     </div>
                                 )}
-                                
-                                {/* Image counter indicator */}
                                 {selectedProduct.images && selectedProduct.images.length > 1 && (
                                     <div className="image-counter">
                                         {currentImageIndex + 1} / {selectedProduct.images.length}
@@ -338,11 +248,8 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                 )}
                             </div>
                             
-                            {/* Content Section */}
                             <div className="popup-product-content">
                                 <h2>{selectedProduct.name}</h2>
-                                
-                                {/* Rating with Lucide Star icons */}
                                 {selectedProduct.rating && (
                                     <div className="popup-product-rating">
                                         <div className="stars">
@@ -351,20 +258,16 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                         <span className="review-count">({selectedProduct.reviewCount || 0} reviews)</span>
                                     </div>
                                 )}
-                                
-                                {/* Price */}
                                 <div className="popup-product-price">
                                     {selectedProduct.originalPrice ? (
                                         <>
-                                            <span className="original-price">${selectedProduct.originalPrice}</span>
-                                            <span className="discounted-price">${selectedProduct.price}</span>
+                                            <span className="original-price">₦{formatNaira(selectedProduct.originalPrice)}</span>
+                                            <span className="discounted-price">₦{formatNaira(selectedProduct.price)}</span>
                                         </>
                                     ) : (
-                                        <span className="discounted-price">${selectedProduct.price}</span>
+                                        <span className="discounted-price">₦{formatNaira(selectedProduct.price)}</span>
                                     )}
                                 </div>
-                                
-                                {/* Tags */}
                                 {selectedProduct.tags && (
                                     <div className="product-tags">
                                         {selectedProduct.tags.map((tag, index) => (
@@ -372,8 +275,6 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                         ))}
                                     </div>
                                 )}
-                                
-                                {/* Quantity Selector with Lucide icons */}
                                 <div className="quantity-selector">
                                     <button 
                                         onClick={() => updateQuantity(-1)}
@@ -395,26 +296,19 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                         <Plus size={16} />
                                     </button>
                                 </div>
-                                
-                                {/* Description */}
                                 <div className="popup-product-description">
                                     <p>{selectedProduct.description}</p>
                                 </div>
-                                
-                                {/* Additional Details with Lucide icons */}
                                 <div className="popup-product-details">
                                     {selectedProduct.instructor && (
                                         <div className="detail-item">
-                                            <span className="icon">
-                                                {/* <ChalkboardPencil size={18} /> */}
-                                            </span>
+                                            <span className="icon">{/* <ChalkboardPencil size={18} /> */}</span>
                                             <div className="content">
                                                 <h4>Instructor</h4>
                                                 <p>{selectedProduct.instructor}</p>
                                             </div>
                                         </div>
                                     )}
-                                    
                                     {selectedProduct.duration && (
                                         <div className="detail-item">
                                             <span className="icon">
@@ -426,7 +320,6 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                             </div>
                                         </div>
                                     )}
-                                    
                                     {selectedProduct.level && (
                                         <div className="detail-item">
                                             <span className="icon">
@@ -438,7 +331,6 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                             </div>
                                         </div>
                                     )}
-                                    
                                     {selectedProduct.stock_quantity && (
                                         <div className="detail-item">
                                             <span className="icon">
@@ -450,7 +342,6 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                             </div>
                                         </div>
                                     )}
-
                                     {selectedProduct.category_name && (
                                         <div className="detail-item">
                                             <span className="icon">
@@ -463,15 +354,11 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                         </div>
                                     )}
                                 </div>
-                                
-                                {/* Action Buttons with Lucide icons */}
                                 <div className="popup-actions">
                                     <button
                                         className="popup-add-to-cart-button"
                                         onClick={() => {
-                                            // Create a new product object with the selected quantity
                                             const productToAdd = {...selectedProduct};
-                                            // Call the addCourseToCartFunction multiple times based on quantity
                                             for (let i = 0; i < quantity; i++) {
                                                 addCourseToCartFunction(productToAdd);
                                             }

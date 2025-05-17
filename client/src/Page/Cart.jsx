@@ -5,6 +5,12 @@ import UserCartComponent from '../components/UserCartComponent';
 import FilterSidebarComponent from '../components/FilterSidebarComponent';
 import Footer from '../components/Footer'; // Import the Footer component
 
+// Helper function for formatting Naira with commas
+function formatNaira(amount) {
+    if (isNaN(amount)) return amount;
+    return Number(amount).toLocaleString('en-NG');
+}
+
 function Cart() {
     const [products, setProducts] = useState([]);
     const [error, setError] = useState('');
@@ -34,7 +40,7 @@ function Cart() {
     const fetchProducts = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('https://shopping-cart-5wj4.onrender.com/products');
+            const response = await fetch('http://localhost:5000/products');
             const data = await response.json();
             setProducts(data);
             setFilteredProducts(data); // Initialize filtered products with all products
@@ -227,7 +233,7 @@ function Cart() {
         if (activeFilters.priceRange.min > 0 || activeFilters.priceRange.max < 1000) {
             tags.push(
                 <div key="price" className="filter-badge">
-                    Price: ${activeFilters.priceRange.min} - ${activeFilters.priceRange.max}
+                    Price: ₦{formatNaira(activeFilters.priceRange.min)} - ₦{formatNaira(activeFilters.priceRange.max)}
                 </div>
             );
         }
@@ -461,7 +467,9 @@ function Cart() {
                     setCartCourses={setCartCourses}
                     clearCart={clearCart}
                     showCart={showCart}
-                    toggleCart={toggleCart} // Pass the toggle function
+                    setShowCart={setShowCart}
+                    // Make sure to pass formatNaira as prop if you want to use it in UserCartComponent
+                    // formatNaira={formatNaira}
                 />
             </main>
             

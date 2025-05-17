@@ -1,6 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+// Helper function to format number with commas for Naira
+function formatNaira(amount) {
+    if (isNaN(amount)) return amount;
+    // If you want to always show decimals, use { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+    return Number(amount).toLocaleString('en-NG');
+}
+
 function UserCartComponent({
     cartCourses,
     deleteCourseFromCartFunction,
@@ -50,7 +57,7 @@ function UserCartComponent({
                                             {item.product.images && item.product.images.map((image, index) => (
                                                 <img
                                                     key={index}
-                                                    src={`https://shopping-cart-5wj4.onrender.com/${image}`}
+                                                    src={`http://localhost:5000/${image}`}
                                                     alt={`${item.product.name} ${index + 1}`}
                                                     className="product-image"
                                                 />
@@ -58,7 +65,7 @@ function UserCartComponent({
                                         </div>
                                         <div className="item-details">
                                             <h3>{item.product.name}</h3>
-                                            <p>Price: ${item.product.price}</p>
+                                            <p>Price: ₦{formatNaira(item.product.price)}</p>
                                             <p>Quantity: {item.quantity}</p>
                                         </div>
                                     </div>
@@ -110,7 +117,9 @@ function UserCartComponent({
                         </ul>
                         <div className="checkout-section">
                             <div className="checkout-total">
-                                <p className="total">Total Amount: ${totalAmountCalculationFunction().toFixed(2)}</p>
+                                <p className="total">
+                                    Total Amount: ₦{formatNaira(Number(totalAmountCalculationFunction().toFixed(2)))}
+                                </p>
                             </div>
                             {/* Disable the link if the cart is empty or total amount is 0 */}
                             {cartCourses.length === 0 || totalAmountCalculationFunction() === 0 ? (

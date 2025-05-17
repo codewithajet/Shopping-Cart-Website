@@ -4,79 +4,101 @@ import {CountrySelect, StateSelect, CitySelect, PhonecodeSelect} from "react-cou
 import "react-country-state-city/dist/react-country-state-city.css";
 
     // Cart Summary Component
-    export const CartSummary = ({ items, total, currency = '$' }) => {
+    // Helper function to format number with commas for Naira (or any currency)
+function formatNaira(amount) {
+    if (isNaN(amount)) return amount;
+    return Number(amount).toLocaleString('en-NG');
+}
+
+// Cart Summary Component
+export const CartSummary = ({ items, total, currency = '₦' }) => {
     if (!items || items.length === 0) {
         return <p className="text-gray-500 py-4">Your cart is empty.</p>;
     }
-    
+
+    // Define the threshold for free shipping in Naira (₦36,000)
+    const freeShippingThreshold = 36000;
+    // Shipping cost in Naira (₦3,600)
+    const shippingCost = 3600;
+
     return (
         <div className="border rounded-lg p-4 mb-6 bg-gray-50">
-        <h3 className="font-medium mb-3">Order Items ({items.length})</h3>
-        <ul className="divide-y">
-            {items.map((item) => (
-            <li key={item.product.id} className="flex justify-between items-center py-3">
-                <div className="flex items-center">
-                {item.product.imageUrl && (
-                    <img 
-                    src={item.product.imageUrl} 
-                    alt={item.product.name}
-                    className="w-12 h-12 object-cover rounded mr-3" 
-                    onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'https://via.placeholder.com/48';
-                    }}
-                    />
+            <h3 className="font-medium mb-3">Order Items ({items.length})</h3>
+            <ul className="divide-y">
+                {items.map((item) => (
+                    <li key={item.product.id} className="flex justify-between items-center py-3">
+                        <div className="flex items-center">
+                            {item.product.imageUrl && (
+                                <img 
+                                    src={item.product.imageUrl} 
+                                    alt={item.product.name}
+                                    className="w-12 h-12 object-cover rounded mr-3" 
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = 'https://via.placeholder.com/48';
+                                    }}
+                                />
+                            )}
+                            <div>
+                                <p className="font-medium">{item.product.name}</p>
+                                <p className="text-sm text-gray-600">
+                                    {currency}{typeof item.product.price === 'number' ? formatNaira(item.product.price) : item.product.price} × {item.quantity}
+                                </p>
+                                {item.product.attributes && (
+                                    <p className="text-xs text-gray-500">
+                                        {Object.entries(item.product.attributes)
+                                            .map(([key, value]) => `${key}: ${value}`)
+                                            .join(', ')}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <span className="font-medium">
+                            {currency}
+                            {typeof item.product.price === 'number'
+                                ? formatNaira(item.product.price * item.quantity)
+                                : item.product.price * item.quantity}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+            
+            <div className="mt-4 pt-3 border-t">
+                <div className="flex justify-between text-sm">
+                    <span>Subtotal:</span>
+                    <span>{currency}{formatNaira(total)}</span>
+                </div>
+                
+                <div className="flex justify-between text-sm mt-2">
+                    <span>Shipping:</span>
+                    <span>{total >= freeShippingThreshold ? 'Free' : `${currency}${formatNaira(shippingCost)}`}</span>
+                </div>
+                
+                {total >= freeShippingThreshold && (
+                    <div className="flex justify-between text-sm mt-1 text-green-600">
+                        <span>Free Shipping Applied:</span>
+                        <span>-{currency}{formatNaira(shippingCost)}</span>
+                    </div>
                 )}
-                <div>
-                    <p className="font-medium">{item.product.name}</p>
-                    <p className="text-sm text-gray-600">
-                    {currency}{typeof item.product.price === 'number' ? item.product.price.toFixed(2) : item.product.price} × {item.quantity}
-                    </p>
-                    {item.product.attributes && (
-                    <p className="text-xs text-gray-500">
-                        {Object.entries(item.product.attributes)
-                        .map(([key, value]) => `${key}: ${value}`)
-                        .join(', ')}
-                    </p>
-                    )}
+                
+                <div className="flex justify-between text-sm mt-2">
+                    <span>Tax (estimated):</span>
+                    <span>{currency}{formatNaira(total * 0.07)}</span>
                 </div>
+                
+                <div className="flex justify-between font-semibold text-lg mt-3 pt-3 border-t">
+                    <span>Total:</span>
+                    <span>
+                        {currency}
+                        {formatNaira(
+                            total + (total >= freeShippingThreshold ? 0 : shippingCost) + (total * 0.07)
+                        )}
+                    </span>
                 </div>
-                <span className="font-medium">{currency}{typeof item.product.price === 'number' ? (item.product.price * item.quantity).toFixed(2) : item.product.price * item.quantity}</span>
-            </li>
-            ))}
-        </ul>
-        
-        <div className="mt-4 pt-3 border-t">
-            <div className="flex justify-between text-sm">
-            <span>Subtotal:</span>
-            <span>{currency}{total.toFixed(2)}</span>
             </div>
-            
-            <div className="flex justify-between text-sm mt-2">
-            <span>Shipping:</span>
-            <span>{total >= 100 ? 'Free' : `${currency}10.00`}</span>
-            </div>
-            
-            {total >= 100 && (
-            <div className="flex justify-between text-sm mt-1 text-green-600">
-                <span>Free Shipping Applied:</span>
-                <span>-{currency}10.00</span>
-            </div>
-            )}
-            
-            <div className="flex justify-between text-sm mt-2">
-            <span>Tax (estimated):</span>
-            <span>{currency}{(total * 0.07).toFixed(2)}</span>
-            </div>
-            
-            <div className="flex justify-between font-semibold text-lg mt-3 pt-3 border-t">
-            <span>Total:</span>
-            <span>{currency}{(total + (total >= 100 ? 0 : 10) + (total * 0.07)).toFixed(2)}</span>
-            </div>
-        </div>
         </div>
     );
-    };
+};
 
 
 // Main Checkout Component
@@ -119,7 +141,7 @@ const Checkout = ({ cartCourses, totalAmount, clearCart }) => {
     const [cityId, setCityId] = useState(0);
     
     // API base URL from environment variable
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://shopping-cart-5wj4.onrender.com';
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     
     // Delivery options
     const deliveryOptions = useMemo(() => [
@@ -1007,7 +1029,7 @@ const Checkout = ({ cartCourses, totalAmount, clearCart }) => {
                                                 
                                                 <div className="flex justify-between">
                                                     <span>Shipping:</span>
-                                                    <span>{localTotalAmount >= 100 ? 'Free' : '$10.00'}</span>
+                                                    <span>{localTotalAmount >= 36000 ? 'Free' : '₦3,600.00'}</span>
                                                 </div>
                                                 
                                                 <div className="flex justify-between">

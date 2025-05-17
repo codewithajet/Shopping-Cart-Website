@@ -82,7 +82,7 @@ const Footer = () => {
                 </li>
                 <li className="flex items-start">
                 <MapPin size={18} className="text-primary-color mr-2 mt-1" />
-                <span className="text-gray-600">83A TOS Benson Estate, Ikorodu, Lagos, Nigeria</span>
+                <span className="text-gray-600">83A TOS Benson Estate, Ikorodu, Lagos</span>
                 </li>
             </ul>
             
@@ -114,7 +114,7 @@ const Footer = () => {
                 <Truck size={24} className="text-primary-color mr-3" />
                 <div>
                     <h4 className="font-medium text-gray-800">Fast Delivery</h4>
-                    <p className="text-sm text-gray-600">Free on orders over $50</p>
+                    <p className="text-sm text-gray-600">Free on orders over ₦10,000</p>
                 </div>
                 </div>
                 <div className="flex items-center justify-center">
@@ -150,9 +150,16 @@ const Footer = () => {
                 <div className="flex items-center space-x-2">
                 <span className="text-xs text-gray-600 mr-2">Payment Methods:</span>
                 <div className="flex space-x-2">
-                    {['Visa', 'Mastercard', 'Amex', 'PayPal', 'Apple Pay'].map((method) => (
-                    <div key={method} className="bg-white px-2 py-1 rounded border border-gray-200">
-                        <span className="text-xs font-medium">{method}</span>
+                    {[
+                      { name: 'Visa', icon: <CreditCard size={16} className="mr-1" /> },
+                      { name: 'Mastercard', icon: <CreditCard size={16} className="mr-1" /> },
+                      { name: 'Amex', icon: <CreditCard size={16} className="mr-1" /> },
+                      { name: 'PayPal', icon: <CreditCard size={16} className="mr-1" /> },
+                      { name: 'Apple Pay', icon: <CreditCard size={16} className="mr-1" /> }
+                    ].map((method) => (
+                    <div key={method.name} className="bg-white px-2 py-1 rounded border border-gray-200 flex items-center">
+                        {method.icon}
+                        <span className="text-xs font-medium">{method.name}</span>
                     </div>
                     ))}
                 </div>
@@ -163,5 +170,4 @@ const Footer = () => {
         </footer>
     );
 };
-
 export default Footer;

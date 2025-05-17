@@ -24,7 +24,7 @@ const ProductManagement = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [notification, setNotification] = useState(null);
   
-  const API_BASE_URL = 'https://shopping-cart-5wj4.onrender.com'; // Update with your actual API URL
+  const API_BASE_URL = 'http://localhost:5000'; // Update with your actual API URL
 
   // Fetch products on component mount
   useEffect(() => {
@@ -276,7 +276,7 @@ const ProductManagement = () => {
       <div className="p-4">
         <div className="flex justify-between items-start mb-2">
           <h3 className="font-medium text-gray-800 line-clamp-1">{product.name}</h3>
-          <span className="font-bold text-blue-600">${parseFloat(product.price).toFixed(2)}</span>
+          <span className="font-bold text-blue-600">#{parseFloat(product.price).toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm text-gray-500 mb-2">
           <span>{product.category_name}</span>
@@ -307,7 +307,7 @@ const ProductManagement = () => {
         )}
       </td>
       <td className="py-3 px-4 text-gray-600">{product.category_name}</td>
-      <td className="py-3 px-4 font-medium text-blue-600">${parseFloat(product.price).toFixed(2)}</td>
+      <td className="py-3 px-4 font-medium text-blue-600">#{parseFloat(product.price).toFixed(2)}</td>
       <td className="py-3 px-4 text-gray-600">{product.stock_quantity}</td>
       <td className="py-3 px-4">
         <div className="flex space-x-2">
