@@ -53,84 +53,56 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md transform transition-all hover:scale-[1.01]" style={{ 
-        background: 'var(--card-bg)',
-        boxShadow: 'var(--shadow-md)',
-        transition: 'var(--transition)'
-      }}>
-        <h2 className="text-3xl font-bold text-center mb-8" style={{ 
-          color: 'var(--primary)',
-          fontFamily: 'var(--font-secondary)'
-        }}>Welcome Back</h2>
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h2 className="login-title">Welcome Back</h2>
+        </div>
+        
         {error && (
-          <div className="px-4 py-3 rounded-lg mb-4" style={{ 
-            background: 'rgba(244, 67, 54, 0.1)',
-            borderLeft: '4px solid var(--danger)',
-            color: 'var(--danger)'
-          }}>
+          <div className="login-error">
             {error}
           </div>
         )}
-        <div className="space-y-6">
-          <div className="transform transition-all duration-300">
-            <label htmlFor="email" className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-dark)' }}>
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              placeholder="Enter your email"
-              className="mt-1 block w-full px-4 py-3 rounded-lg"
-              style={{
-                border: '1px solid var(--border-light)',
-                transition: 'var(--transition)',
-                color: 'var(--text-dark)'
-              }}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="transform transition-all duration-300">
-            <label htmlFor="password" className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-dark)' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              placeholder="Enter your password"
-              className="mt-1 block w-full px-4 py-3 rounded-lg"
-              style={{
-                border: '1px solid var(--border-light)',
-                transition: 'var(--transition)',
-                color: 'var(--text-dark)'
-              }}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <button
-            onClick={handleLogin}
-            className="w-full py-3 px-4 rounded-lg font-medium"
-            style={{
-              background: 'var(--primary)',
-              color: 'white',
-              transition: 'var(--transition)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            Login
-          </button>
+        
+        <div className="form-group">
+          <label htmlFor="email" className="form-label">
+            Email
+          </label>
+          <input
+            type="email"
+            id="email"
+            className="form-input"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
-        <p className="mt-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>
+        
+        <div className="form-group">
+          <label htmlFor="password" className="form-label">
+            Password
+          </label>
+          <input
+            type="password"
+            id="password"
+            className="form-input"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        
+        <button
+          onClick={handleLogin}
+          className="login-button2"
+        >
+          Login
+        </button>
+        
+        <p className="login-footer">
           Don't have an account?{' '}
-          <a href="/register" style={{ 
-            color: 'var(--primary)',
-            fontWeight: '500',
-            transition: 'var(--transition)'
-          }}>
-            Sign up
-          </a>
+          <a href="/register">Sign up</a>
         </p>
       </div>
     </div>

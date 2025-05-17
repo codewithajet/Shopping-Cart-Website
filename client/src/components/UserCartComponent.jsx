@@ -23,7 +23,8 @@ function UserCartComponent({
             <div className={`cart ${cartCourses.length > 0 && showCart ? 'active' : ''}`}>
                 <div className="cart-header">
                     <h2>My Cart</h2>
-                    <button className="close-cart-button" onClick={handleCloseModal}>
+                    <button className="close-cart-button" 
+                                onClick={clearCart}>
                         ×
                     </button>
                 </div>

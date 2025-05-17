@@ -14,6 +14,7 @@
    10. Loading & Error States
    11. Active Filters
    12. Responsive Design
+   13. Login Page
    ========================================================================== */
 
 /* ==========================================================================
@@ -1444,7 +1445,6 @@
     }
     
     .cart-overlay {
-      display: block;
       opacity: 0.8;
     }
     
@@ -2907,3 +2907,144 @@ body.popup-open {
     left: var(--spacing-md);
   }
 
+
+  /* ==========================================================================
+   13. Login Page Styles
+   ========================================================================== */
+
+/* Login container */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-main);
+  padding: var(--spacing-md);
+}
+
+/* Login card */
+.login-card {
+  background: var(--background-card);
+  padding: var(--spacing-xl);
+  border-radius: var(--border-radius);
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--box-shadow);
+  transform: translateY(0);
+  transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+}
+
+.login-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Login header */
+.login-header {
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+}
+
+.login-title {
+  font-size: var(--font-size-xxl);
+  font-weight: var(--font-weight-bold);
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+}
+
+/* Error message */
+.login-error {
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  border-radius: var(--border-radius);
+  background-color: rgba(244, 67, 54, 0.1);
+  border-left: 4px solid #f44336;
+  color: #f44336;
+}
+
+/* Form group */
+.form-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.form-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-color);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  font-size: var(--font-size-md);
+  color: var(--text-color);
+  transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
+}
+
+.form-input::placeholder {
+  color: var(--text-lighter);
+}
+
+/* Login button */
+.login-button2 {
+  width: 100%;
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  background-color: var(--primary-color);
+  color: white;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition-speed), transform var(--transition-speed);
+  box-shadow: 0 2px 6px rgba(63, 81, 181, 0.3);
+}
+
+.login-button2:hover {
+  background-color: var(--primary-dark);
+}
+
+.login-button2:active {
+  transform: translateY(2px);
+}
+
+/* Sign up link */
+.login-footer {
+  margin-top: var(--spacing-xl);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--text-light);
+}
+
+.login-footer a {
+  color: var(--primary-color);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  transition: color var(--transition-speed);
+}
+
+.login-footer a:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .login-card {
+    padding: var(--spacing-lg);
+  }
+  
+  .login-title {
+    font-size: var(--font-size-xl);
+  }
+}

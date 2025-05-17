@@ -1,4 +1,4 @@
-import { ArrowLeft,ArrowRight,X,Minus,Plus,Heart,Clock,Signal,Package,Tag,Star,StarHalf} from 'lucide-react';
+import { ArrowLeft, ArrowRight, X, Minus, Plus, Heart, Clock, Signal, Package, Tag, Star, StarHalf, RotateCcw } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 
 function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) {
@@ -12,6 +12,8 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
     const popupContentRef = useRef(null);
     // Add state to track current image index in the swiper
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    // Add state to track image rotation
+    const [imageRotation, setImageRotation] = useState(0);
     
     // Function to open the popup with the selected product
     const openProductPopup = (product) => {
@@ -20,6 +22,8 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
         setQuantity(1);
         // Reset current image index to 0
         setCurrentImageIndex(0);
+        // Reset image rotation
+        setImageRotation(0);
         // Add body class to prevent background scrolling
         document.body.classList.add('popup-open');
     };
@@ -91,6 +95,8 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
         setCurrentImageIndex(prevIndex => 
             prevIndex === 0 ? selectedProduct.images.length - 1 : prevIndex - 1
         );
+        // Reset rotation when changing images
+        setImageRotation(0);
     };
 
     // Function to navigate to next image
@@ -100,11 +106,25 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
         setCurrentImageIndex(prevIndex => 
             prevIndex === selectedProduct.images.length - 1 ? 0 : prevIndex + 1
         );
+        // Reset rotation when changing images
+        setImageRotation(0);
     };
 
     // Function to select a specific image by index
     const selectImage = (index) => {
         setCurrentImageIndex(index);
+        // Reset rotation when changing images
+        setImageRotation(0);
+    };
+    
+    // Function to rotate the current image
+    const rotateImage = () => {
+        setImageRotation(prevRotation => (prevRotation + 90) % 360);
+    };
+    
+    // Function to reset image rotation
+    const resetRotation = () => {
+        setImageRotation(0);
     };
     
     // Render star rating component using Lucide icons
@@ -221,24 +241,55 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                                         <ArrowLeft size={20} />
                                     </button>
                                     
-                                    {/* Main image display */}
-                                    {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                                        <img 
-                                            src={`http://localhost:5000${selectedProduct.images[currentImageIndex].startsWith('/') ? '' : '/'}${selectedProduct.images[currentImageIndex]}`}
-                                            alt={`${selectedProduct.name} - image ${currentImageIndex + 1}`}
-                                            className="popup-product-image"
-                                            onError={(e) => {
-                                                e.target.onerror = null;
-                                                e.target.src = "/src/assets/avatar.png";
-                                            }}
-                                        />
-                                    ) : (
-                                        <img 
-                                            src="/src/assets/avatar.png"
-                                            alt={selectedProduct.name}
-                                            className="popup-product-image"
-                                        />
-                                    )}
+                                    {/* Main image display with rotation */}
+                                    <div className="rotatable-image-container">
+                                        {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                                            <img 
+                                                src={`http://localhost:5000${selectedProduct.images[currentImageIndex].startsWith('/') ? '' : '/'}${selectedProduct.images[currentImageIndex]}`}
+                                                alt={`${selectedProduct.name} - image ${currentImageIndex + 1}`}
+                                                className="popup-product-image"
+                                                style={{ 
+                                                    transform: `rotate(${imageRotation}deg)`,
+                                                    transition: 'transform 0.5s ease'
+                                                }}
+                                                onClick={rotateImage}
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = "/src/assets/avatar.png";
+                                                }}
+                                            />
+                                        ) : (
+                                            <img 
+                                                src="/src/assets/avatar.png"
+                                                alt={selectedProduct.name}
+                                                className="popup-product-image"
+                                                style={{ 
+                                                    transform: `rotate(${imageRotation}deg)`,
+                                                    transition: 'transform 0.5s ease'
+                                                }}
+                                                onClick={rotateImage}
+                                            />
+                                        )}
+                                        
+                                        {/* Reset rotation button */}
+                                        {imageRotation !== 0 && (
+                                            <button 
+                                                className="reset-rotation-button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    resetRotation();
+                                                }}
+                                                aria-label="Reset image rotation"
+                                            >
+                                                <RotateCcw size={16} />
+                                            </button>
+                                        )}
+                                        
+                                        {/* Rotation instruction tooltip */}
+                                        <div className="rotation-tooltip">
+                                            Click image to rotate
+                                        </div>
+                                    </div>
                                     
                                     <button 
                                         className="image-nav-button next"
