@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_mysqldb import MySQL
 from flask_cors import CORS
 import os
+from dotenv import load_dotenv
 import re
 import uuid
 import datetime
@@ -18,12 +19,7 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 CORS(app)
 
-# MySQL configuration
-# app.config['MYSQL_HOST'] = 'localhost'
-# app.config['MYSQL_USER'] = 'root'
-# app.config['MYSQL_PASSWORD'] = ''
-# app.config['MYSQL_DB'] = 'shopping_cartdb'
-# app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+load_dotenv()  # loads variables from .env file
 
 app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
 app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
