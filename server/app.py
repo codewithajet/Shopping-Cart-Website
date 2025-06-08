@@ -39,7 +39,7 @@ mysql = MySQL(app)
 
 # Helper function to check if file extension is allowed
 def allowed_file(filename):
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Additional route to serve uploaded files directly
@@ -132,637 +132,335 @@ def login():
         return jsonify({'message': 'Invalid credentials'}), 401
     except Exception as e:
         return jsonify({'message': 'An error occurred. Please try again.', 'error': str(e)}), 500
+def parse_bool(val):
+    if isinstance(val, bool):
+        return val
+    return str(val).lower() in ("true", "1", "yes")
 
-
-# Get all products with filters
 @app.route('/products', methods=['GET'])
 def get_products():
     try:
         cursor = mysql.connection.cursor()
+        category_id = request.args.get('category_id', type=int)
+        min_price = request.args.get('min_price', type=float)
+        max_price = request.args.get('max_price', type=float)
+        sort_by = request.args.get('sort_by')  # name, price-low, price-high, rating
 
-        # Get query parameters for filtering
-        category_id = request.args.get('category_id')
-        min_price = request.args.get('min_price')
-        max_price = request.args.get('max_price')
-
-        # Base query
         query = 'SELECT * FROM products WHERE 1=1'
         params = []
 
-        # Apply filters if provided
         if category_id:
             query += ' AND category_id = %s'
-            params.append(int(category_id))
-
-        if min_price:
+            params.append(category_id)
+        if min_price is not None:
             query += ' AND price >= %s'
-            params.append(float(min_price))
-
-        if max_price:
+            params.append(min_price)
+        if max_price is not None:
             query += ' AND price <= %s'
-            params.append(float(max_price))
+            params.append(max_price)
+        if sort_by == 'name':
+            query += ' ORDER BY name ASC'
+        elif sort_by == 'price-low':
+            query += ' ORDER BY price ASC'
+        elif sort_by == 'price-high':
+            query += ' ORDER BY price DESC'
+        elif sort_by == 'rating':
+            query += ' ORDER BY rating DESC'
+        else:
+            query += ' ORDER BY id DESC'
 
-        # Execute the main query
-        cursor.execute(query, params)
+        cursor.execute(query, tuple(params))
         products = cursor.fetchall()
 
-        # Fetch images for each product
+        # Fetch product images
         for product in products:
             cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (product['id'],))
             images = cursor.fetchall()
-            product['images'] = [row['image_url'] for row in images]
-
-            # Get category name
-            cursor.execute('SELECT name FROM categories WHERE id = %s', (product['category_id'],))
-            category = cursor.fetchone()
-            product['category_name'] = category['name'] if category else None
-
+            product['images'] = [img['image_url'] for img in images] if images else ([product['image']] if product['image'] else [])
+            # Parse specifications if stored as JSON
+            if product.get('specifications'):
+                try:
+                    product['specifications'] = json.loads(product['specifications'])
+                except Exception:
+                    product['specifications'] = None
         cursor.close()
         return jsonify(products), 200
     except Exception as e:
         return jsonify({'message': 'Failed to fetch products', 'error': str(e)}), 500
 
-# Get a single product by ID
 @app.route('/products/<int:id>', methods=['GET'])
 def get_product(id):
     try:
         cursor = mysql.connection.cursor()
         cursor.execute('SELECT * FROM products WHERE id = %s', (id,))
         product = cursor.fetchone()
-
         if not product:
             return jsonify({'message': 'Product not found'}), 404
-
-        # Get product images
         cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (id,))
         images = cursor.fetchall()
-        product['images'] = [row['image_url'] for row in images]
-
-        # Get category information
-        cursor.execute('SELECT name FROM categories WHERE id = %s', (product['category_id'],))
-        category = cursor.fetchone()
-        product['category_name'] = category['name'] if category else None
-
+        product['images'] = [img['image_url'] for img in images] if images else ([product['image']] if product['image'] else [])
+        if product.get('specifications'):
+            try:
+                product['specifications'] = json.loads(product['specifications'])
+            except Exception:
+                product['specifications'] = None
         cursor.close()
         return jsonify(product), 200
     except Exception as e:
         return jsonify({'message': 'Failed to fetch product', 'error': str(e)}), 500
 
-# Add a new product
 @app.route('/products', methods=['POST'])
 def add_product():
     try:
         name = request.form.get('name')
-        price = request.form.get('price')
-        category_id = request.form.get('category_id')
+        price = request.form.get('price', type=float)
+        category_id = request.form.get('category_id', type=int)
         description = request.form.get('description')
-        stock_quantity = request.form.get('stock_quantity', 0)
+        rating = request.form.get('rating', type=float)
+        stock_count = request.form.get('stock_count', type=int, default=0)
+        in_stock_str = request.form.get('in_stock')
+        in_stock = parse_bool(in_stock_str) if in_stock_str is not None else True
+        full_description = request.form.get('full_description')
+        specifications = request.form.get('specifications')
+        # Image handling: Use the first image file as main image
         images = request.files.getlist('images')
+        image_url = None
+        image_urls = []
+        if images:
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            for idx, image_file in enumerate(images):
+                if image_file and allowed_file(image_file.filename):
+                    ext = image_file.filename.rsplit('.', 1)[1].lower()
+                    filename = f"{uuid.uuid4().hex}.{ext}"
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    image_file.save(filepath)
+                    url = f"/static/uploads/{filename}"
+                    if idx == 0:
+                        image_url = url
+                    image_urls.append(url)
+        if not all([name, price is not None, category_id, description]):
+            return jsonify({'message': 'name, price, category_id, and description are required'}), 400
 
-        # Validate required fields
-        if not name or not price or not category_id or not description:
-            return jsonify({'message': 'Name, price, category_id, and description are required'}), 400
-        
-        # Validate price
-        try:
-            price = float(price)
-            if price <= 0:
-                return jsonify({'message': 'Price must be a positive number'}), 400
-        except ValueError:
-            return jsonify({'message': 'Price must be a valid number'}), 400
+        # Try parsing specifications JSON
+        if specifications:
+            try:
+                json.loads(specifications)
+            except Exception:
+                return jsonify({'message': 'specifications must be valid JSON'}), 400
 
-        # Validate stock quantity
-        try:
-            stock_quantity = int(stock_quantity)
-            if stock_quantity < 0:
-                return jsonify({'message': 'Stock quantity cannot be negative'}), 400
-        except ValueError:
-            return jsonify({'message': 'Stock quantity must be a valid integer'}), 400
-
-        # Validate category exists
         cursor = mysql.connection.cursor()
-        cursor.execute('SELECT id FROM categories WHERE id = %s', (category_id,))
-        if not cursor.fetchone():
-            return jsonify({'message': 'Category not found'}), 400
-        
-        # Insert product
         cursor.execute(
-            'INSERT INTO products (name, price, category_id, description, stock_quantity) VALUES (%s, %s, %s, %s, %s)',
-            (name, price, category_id, description, stock_quantity)
+            '''
+            INSERT INTO products (name, price, image, category_id, description, rating, full_description, specifications, in_stock, stock_count)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''',
+            (name, price, image_url, category_id, description, rating, full_description, specifications, in_stock, stock_count)
         )
         product_id = cursor.lastrowid
-        
-        # Save images with secure naming
-        image_urls = []
-        for i, image in enumerate(images):
-            if image and allowed_file(image.filename):
-                # Generate a unique filename
-                ext = image.filename.rsplit('.', 1)[1].lower()
-                filename = f"{uuid.uuid4().hex}.{ext}"
-                
-                # Create subdirectories if they don't exist
-                if not os.path.exists(app.config['UPLOAD_FOLDER']):
-                    os.makedirs(app.config['UPLOAD_FOLDER'])
-                
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                image.save(filepath)
-                
-                # Store relative path in DB
-                image_url = f"/static/uploads/{filename}"
-                is_primary = (i == 0)  # First image is primary
+
+        # Save extra images to product_images table
+        if image_urls:
+            for idx, url in enumerate(image_urls):
                 cursor.execute(
                     'INSERT INTO product_images (product_id, image_url, is_primary) VALUES (%s, %s, %s)',
-                    (product_id, image_url, is_primary)
+                    (product_id, url, idx == 0)
                 )
-                image_urls.append(image_url)
-        
         mysql.connection.commit()
         cursor.close()
-        
-        return jsonify({
-            'message': 'Product added successfully', 
-            'id': product_id, 
-            'images': image_urls
-        }), 201
+        return jsonify({'id': product_id, 'images': image_urls}), 201
     except Exception as e:
         return jsonify({'message': 'Failed to add product', 'error': str(e)}), 500
 
-# Check product stock availability]
-def check_product_stock(product_id, requested_quantity):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Get product and its current stock
-        cursor.execute(
-            "SELECT id, name, price, stock_quantity FROM products WHERE id = %s", 
-            (product_id,)
-        )
-        product = cursor.fetchone()
-        
-        if not product:
-            return {"available": False, "reason": "product_not_found", "name": f"Product #{product_id}"}
-        
-        # Check if requested quantity is available
-        if product['stock_quantity'] < requested_quantity:
-            return {
-                "available": False, 
-                "reason": "insufficient_stock",
-                "name": product['name'],
-                "requested": requested_quantity,
-                "in_stock": product['stock_quantity']
-            }
-        
-        return {"available": True, "product_id": product_id}
-    except Exception as e:
-        print(f"Database error: {e}")
-        return {"available": False, "reason": "database_error"}
-    finally:
-        cursor.close()
-
-# API endpoint to check stock availability
-# Update a product
-# Database helper functions
-def get_db_connection():
-    # Using mysql.connection from Flask-MySQL
-    return mysql.connection
-
-def check_product_stock(product_id, requested_quantity):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Get product and its current stock
-        cursor.execute(
-            "SELECT id, name, price, stock_quantity FROM products WHERE id = %s", 
-            (product_id,)
-        )
-        product = cursor.fetchone()
-        
-        if not product:
-            return {"available": False, "reason": "product_not_found", "name": f"Product #{product_id}"}
-        
-        # Check if requested quantity is available
-        if product['stock_quantity'] < requested_quantity:
-            return {
-                "available": False, 
-                "reason": "insufficient_stock",
-                "name": product['name'],
-                "requested": requested_quantity,
-                "in_stock": product['stock_quantity']
-            }
-        
-        return {"available": True, "product_id": product_id}
-    except Exception as e:
-        print(f"Database error: {e}")
-        return {"available": False, "reason": "database_error"}
-    finally:
-        cursor.close()
-
-@app.route('/products/check-stock', methods=['POST'])
-def check_stock():
-    try:
-        data = request.get_json()
-        
-        if not data or 'items' not in data or not isinstance(data['items'], list):
-            return jsonify({"success": False, "message": "Invalid request format"}), 400
-        
-        items = data['items']
-        out_of_stock_items = []
-        
-        # Check each item's stock availability
-        for item in items:
-            product_id = item.get('productId')
-            quantity = item.get('quantity', 1)
-            
-            if not product_id:
-                return jsonify({"success": False, "message": "Product ID is required for each item"}), 400
-            
-            # Validate numeric values
-            try:
-                product_id = int(product_id)
-                quantity = int(quantity)
-                if quantity <= 0:
-                    return jsonify({"success": False, "message": "Quantity must be a positive number"}), 400
-            except ValueError:
-                return jsonify({"success": False, "message": "Product ID and quantity must be valid numbers"}), 400
-            
-            stock_check = check_product_stock(product_id, quantity)
-            
-            if not stock_check["available"]:
-                out_of_stock_items.append({
-                    "id": product_id,
-                    "name": stock_check.get("name", f"Product #{product_id}"),
-                    "requested": quantity,
-                    "available": stock_check.get("in_stock", 0),
-                    "reason": stock_check.get("reason", "unknown")
-                })
-        
-        # If any items are out of stock, return them in the response
-        if out_of_stock_items:
-            return jsonify({
-                "success": False,
-                "message": "Some items in your cart are out of stock",
-                "outOfStockItems": out_of_stock_items
-            }), 409
-        
-        # All items are in stock
-        return jsonify({
-            "success": True,
-            "message": "All items are in stock"
-        })
-        
-    except Exception as e:
-        print(f"Error checking stock: {str(e)}")
-        return jsonify({"success": False, "message": "An error occurred while checking stock"}), 500
-
-# Optional: Create an endpoint to update stock quantity (for testing)
-@app.route('/products/update-stock', methods=['POST'])
-def update_stock():
-    conn = None
-    cursor = None
-    try:
-        data = request.get_json()
-        
-        if not data or 'productId' not in data or 'quantity' not in data:
-            return jsonify({"success": False, "message": "Product ID and quantity are required"}), 400
-        
-        # Validate numeric values
-        try:
-            product_id = int(data['productId'])
-            quantity = int(data['quantity'])
-            if quantity < 0:
-                return jsonify({"success": False, "message": "Quantity cannot be negative"}), 400
-        except ValueError:
-            return jsonify({"success": False, "message": "Product ID and quantity must be valid numbers"}), 400
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # First check if product exists
-        cursor.execute("SELECT id FROM products WHERE id = %s", (product_id,))
-        if not cursor.fetchone():
-            return jsonify({"success": False, "message": f"Product with ID {product_id} not found"}), 404
-        
-        # Update the stock quantity
-        cursor.execute(
-            "UPDATE products SET stock_quantity = %s WHERE id = %s", 
-            (quantity, product_id)
-        )
-        
-        conn.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": f"Stock updated for product {product_id}"
-        })
-        
-    except Exception as e:
-        if conn:
-            try:
-                conn.rollback()
-            except:
-                pass
-        print(f"Error updating stock: {str(e)}")
-        return jsonify({"success": False, "message": f"An error occurred while updating stock: {str(e)}"}), 500
-    finally:
-        if cursor:
-            cursor.close()
-#Update a product
 @app.route('/products/<int:id>', methods=['PUT', 'PATCH'])
 def update_product(id):
-    cursor = None
     try:
         cursor = mysql.connection.cursor()
-
-        # Check if product exists
         cursor.execute('SELECT id FROM products WHERE id = %s', (id,))
         if not cursor.fetchone():
             return jsonify({'message': 'Product not found'}), 404
 
-        # Get form data
         data = request.form
-
-        # Build update query dynamically based on provided fields
         update_fields = []
         update_values = []
 
-        if 'name' in data:
-            update_fields.append('name = %s')
-            update_values.append(data['name'])
+        for field in ['name', 'price', 'image', 'category_id', 'description', 'rating', 'stock_count', 'in_stock', 'full_description', 'specifications']:
+            if field in data:
+                if field == 'specifications':
+                    try:
+                        json.loads(data[field])
+                    except Exception:
+                        return jsonify({'message': 'specifications must be valid JSON'}), 400
+                value = data[field]
+                if field == 'in_stock':
+                    value = parse_bool(value)
+                update_fields.append(f"{field} = %s")
+                update_values.append(value)
 
-        if 'description' in data:
-            update_fields.append('description = %s')
-            update_values.append(data['description'])
+        # Handle new images
+        if 'images' in request.files:
+            images = request.files.getlist('images')
+            if data.get('replace_images') == 'true':
+                cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (id,))
+                old_images = cursor.fetchall()
+                cursor.execute('DELETE FROM product_images WHERE product_id = %s', (id,))
+                for img in old_images:
+                    try:
+                        file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(img['image_url']))
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                    except Exception:
+                        pass
+            for idx, image_file in enumerate(images):
+                if image_file and allowed_file(image_file.filename):
+                    ext = image_file.filename.rsplit('.', 1)[1].lower()
+                    filename = f"{uuid.uuid4().hex}.{ext}"
+                    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    image_file.save(filepath)
+                    image_url = f"/static/uploads/{filename}"
+                    cursor.execute(
+                        'INSERT INTO product_images (product_id, image_url, is_primary) VALUES (%s, %s, %s)',
+                        (id, image_url, idx == 0 and data.get('replace_images') == 'true')
+                    )
+            if images and len(images) > 0:
+                # Update main image if needed
+                main_image_url = f"/static/uploads/{filename}"
+                update_fields.append("image = %s")
+                update_values.append(main_image_url)
 
-        if 'price' in data:
-            try:
-                price = float(data['price'])
-                if price <= 0:
-                    return jsonify({'message': 'Price must be a positive number'}), 400
-                update_fields.append('price = %s')
-                update_values.append(price)
-            except ValueError:
-                return jsonify({'message': 'Price must be a valid number'}), 400
-
-        if 'stock_quantity' in data:
-            try:
-                stock = int(data['stock_quantity'])
-                if stock < 0:
-                    return jsonify({'message': 'Stock quantity cannot be negative'}), 400
-                update_fields.append('stock_quantity = %s')
-                update_values.append(stock)
-            except ValueError:
-                return jsonify({'message': 'Stock quantity must be a valid integer'}), 400
-
-        if 'category_id' in data:
-            # Validate category exists
-            cursor.execute('SELECT id FROM categories WHERE id = %s', (data['category_id'],))
-            if not cursor.fetchone():
-                return jsonify({'message': 'Category not found'}), 400
-            update_fields.append('category_id = %s')
-            update_values.append(data['category_id'])
-
-        # If no fields to update
         if not update_fields:
             return jsonify({'message': 'No fields to update provided'}), 400
 
-        # Build and execute the update query
         query = f"UPDATE products SET {', '.join(update_fields)} WHERE id = %s"
         update_values.append(id)
         cursor.execute(query, update_values)
-
-        # Handle new images if provided
-        if 'images' in request.files:
-            images = request.files.getlist('images')
-
-            # Delete old images if replace_images flag is set
-            if data.get('replace_images') == 'true':
-                # Get existing image paths to delete files
-                cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (id,))
-                old_images = cursor.fetchall()
-
-                # Delete image records from DB
-                cursor.execute('DELETE FROM product_images WHERE product_id = %s', (id,))
-
-                # Delete physical files
-                for image in old_images:
-                    try:
-                        # Extract filename from URL
-                        filename = os.path.basename(image['image_url'])
-                        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
-                    except Exception as e:
-                        # Continue even if file deletion fails
-                        print(f"Failed to delete file: {e}")
-                        pass
-
-            # Add new images
-            for i, image in enumerate(images):
-                if image and allowed_file(image.filename):
-                    ext = image.filename.rsplit('.', 1)[1].lower()
-                    filename = f"{uuid.uuid4().hex}.{ext}"
-                    
-                    # Ensure directory exists
-                    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-                        os.makedirs(app.config['UPLOAD_FOLDER'])
-                    
-                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    image.save(filepath)
-                    
-                    image_url = f"/static/uploads/{filename}"
-                    is_primary = (i == 0 and data.get('replace_images') == 'true')
-                    cursor.execute(
-                        'INSERT INTO product_images (product_id, image_url, is_primary) VALUES (%s, %s, %s)',
-                        (id, image_url, is_primary)
-                    )
-
         mysql.connection.commit()
+        cursor.close()
         return jsonify({'message': 'Product updated successfully'}), 200
     except Exception as e:
         return jsonify({'message': 'Failed to update product', 'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
 
-# Delete a product
 @app.route('/products/<int:id>', methods=['DELETE'])
 def delete_product(id):
-    cursor = None
     try:
         cursor = mysql.connection.cursor()
-
-        # Check if product exists
-        cursor.execute('SELECT id FROM products WHERE id = %s', (id,))
-        if not cursor.fetchone():
+        cursor.execute('SELECT image FROM products WHERE id = %s', (id,))
+        product = cursor.fetchone()
+        if not product:
             return jsonify({'message': 'Product not found'}), 404
-
-        # Get image paths to delete files
         cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (id,))
         images = cursor.fetchall()
-
-        # Delete the product (product_images will be deleted automatically due to ON DELETE CASCADE)
         cursor.execute('DELETE FROM products WHERE id = %s', (id,))
+        cursor.execute('DELETE FROM product_images WHERE product_id = %s', (id,))
         mysql.connection.commit()
-
-        # Delete actual image files
-        for image in images:
+        for img in images:
             try:
-                # Extract filename from URL
-                filename = os.path.basename(image['image_url'])
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(img['image_url']))
                 if os.path.exists(file_path):
                     os.remove(file_path)
-            except Exception as e:
-                # Continue even if file deletion fails
-                print(f"Failed to delete file: {e}")
+            except Exception:
                 pass
-
+        if product.get('image'):
+            try:
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(product['image']))
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception:
+                pass
+        cursor.close()
         return jsonify({'message': 'Product deleted successfully'}), 200
     except Exception as e:
         return jsonify({'message': 'Failed to delete product', 'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-
 
 # Category Management Routes
+# Helper: Get product count for a category
+# --- Image upload endpoint ---
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({'message': 'No image file provided'}), 400
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'message': 'No selected file'}), 400
+    filename = secure_filename(file.filename)
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(save_path)
+    url = f'http://127.0.0.1:5000/static/uploads/{filename}'
+    return jsonify({'url': url}), 200
+
+# --- CRUD endpoints for categories ---
+def get_product_count(category_id):
+    cursor = mysql.connection.cursor()
+    cursor.execute('SELECT COUNT(*) as count FROM products WHERE category_id = %s', (category_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    return result['count'] if result and 'count' in result else 0
+
 @app.route('/categories', methods=['GET'])
 def get_categories():
-    """
-    Get all categories from the database.
-    Returns a JSON list of all categories or an error message.
-    """
-    try:
-        cursor = mysql.connection.cursor()
-        cursor.execute('SELECT * FROM categories')
-        categories = cursor.fetchall()
-        cursor.close()
-        
-        if not categories:
-            return jsonify({'message': 'No categories found', 'data': []}), 200
-            
-        return jsonify({'message': 'Categories retrieved successfully', 'data': categories}), 200
-    except Exception as e:
-        return jsonify({'message': 'Failed to fetch categories', 'error': str(e), 'success': False}), 500
+    cursor = mysql.connection.cursor()
+    cursor.execute('SELECT * FROM categories')
+    categories = cursor.fetchall()
+    cursor.close()
+    for category in categories:
+        category['productCount'] = get_product_count(category['id'])
+        # Default/fix icon if not set or invalid
+        if not category.get('icon') or category['icon'] in ('?', '????'):
+            # Try to assign a default by name
+            if category['name'].lower() == 'electronics':
+                category['icon'] = '📱'
+            elif category['name'].lower() == 'fashion':
+                category['icon'] = '👗'
+            elif category['name'].lower() == 'home':
+                category['icon'] = '🏠'
+            else:
+                category['icon'] = '🛒'
+    return jsonify({'data': categories, 'success': True}), 200
 
 @app.route('/categories', methods=['POST'])
 def add_category():
-    """
-    Add a new category to the database.
-    Requires a JSON object with 'name' and optional 'description' fields.
-    Returns the new category ID or an error message.
-    """
-    try:
-        data = request.get_json()
-        if data is None:
-            return jsonify({'message': 'Invalid JSON data', 'success': False}), 400
-            
-        name = data.get('name')
-        description = data.get('description', '')  # Default to empty string if not provided
-        
-        if not name or not name.strip():
-            return jsonify({'message': 'Category name is required and cannot be empty', 'success': False}), 400
-            
-        cursor = mysql.connection.cursor()
-        cursor.execute(
-            'INSERT INTO categories (name, description) VALUES (%s, %s)',
-            (name.strip(), description.strip() if description else '')
-        )
-        mysql.connection.commit()
-        category_id = cursor.lastrowid
-        cursor.close()
-        
-        return jsonify({
-            'message': 'Category added successfully', 
-            'id': category_id, 
-            'success': True
-        }), 201
-    except Exception as e:
-        return jsonify({'message': 'Failed to add category', 'error': str(e), 'success': False}), 500
+    data = request.get_json()
+    name = data.get('name')
+    description = data.get('description', '')
+    image = data.get('image', '')
+    icon = data.get('icon', '🛒')
+    if not name or not name.strip():
+        return jsonify({'message': 'Category name is required', 'success': False}), 400
+    cursor = mysql.connection.cursor()
+    cursor.execute(
+        'INSERT INTO categories (name, description, image, icon) VALUES (%s, %s, %s, %s)',
+        (name.strip(), description.strip(), image.strip(), icon.strip())
+    )
+    mysql.connection.commit()
+    cursor.close()
+    return jsonify({'message': 'Category added', 'success': True}), 201
 
 @app.route('/categories/<int:id>', methods=['PUT'])
 def update_category(id):
-    """
-    Update an existing category by ID.
-    Requires a JSON object with 'name' and optional 'description' fields.
-    Returns a success message or an error message.
-    """
-    try:
-        data = request.get_json()
-        if data is None:
-            return jsonify({'message': 'Invalid JSON data', 'success': False}), 400
-        
-        # Get values from request, check if they exist in the data
-        name = data.get('name')
-        description = data.get('description')
-        
-        if not name or not name.strip():
-            return jsonify({'message': 'Category name is required and cannot be empty', 'success': False}), 400
-            
-        cursor = mysql.connection.cursor()
-        # Check if category exists
-        cursor.execute('SELECT id FROM categories WHERE id = %s', (id,))
-        if not cursor.fetchone():
-            cursor.close()
-            return jsonify({'message': 'Category not found', 'success': False}), 404
-        
-        # Update both name and description
-        cursor.execute(
-            'UPDATE categories SET name = %s, description = %s WHERE id = %s',
-            (name.strip(), description.strip() if description else '', id)
-        )
-        mysql.connection.commit()
-        cursor.close()
-        
-        return jsonify({'message': 'Category updated successfully', 'success': True}), 200
-    except Exception as e:
-        return jsonify({'message': 'Failed to update category', 'error': str(e), 'success': False}), 500
+    data = request.get_json()
+    name = data.get('name')
+    description = data.get('description', '')
+    image = data.get('image', '')
+    icon = data.get('icon', '🛒')
+    if not name or not name.strip():
+        return jsonify({'message': 'Category name is required', 'success': False}), 400
+    cursor = mysql.connection.cursor()
+    cursor.execute('UPDATE categories SET name=%s, description=%s, image=%s, icon=%s WHERE id=%s',
+                   (name.strip(), description.strip(), image.strip(), icon.strip(), id))
+    mysql.connection.commit()
+    cursor.close()
+    return jsonify({'message': 'Category updated', 'success': True}), 200
 
 @app.route('/categories/<int:id>', methods=['DELETE'])
 def delete_category(id):
-    """
-    Delete a category by ID.
-    Returns a success message or an error message.
-    """
-    try:
-        cursor = mysql.connection.cursor()
-        # Check if category exists
-        cursor.execute('SELECT id FROM categories WHERE id = %s', (id,))
-        if not cursor.fetchone():
-            cursor.close()
-            return jsonify({'message': 'Category not found', 'success': False}), 404
-        
-        cursor.execute('DELETE FROM categories WHERE id = %s', (id,))
-        mysql.connection.commit()
-        cursor.close()
-        
-        return jsonify({'message': 'Category deleted successfully', 'success': True}), 200
-    except Exception as e:
-        return jsonify({'message': 'Failed to delete category', 'error': str(e), 'success': False}), 500
+    cursor = mysql.connection.cursor()
+    cursor.execute('DELETE FROM categories WHERE id=%s', (id,))
+    mysql.connection.commit()
+    cursor.close()
+    return jsonify({'message': 'Category deleted', 'success': True}), 200
 
-@app.route('/categories/<int:id>', methods=['GET'])
-def get_category(id):
-    """
-    Get a specific category by ID.
-    Returns the category data or an error message.
-    """
-    try:
-        cursor = mysql.connection.cursor()
-        cursor.execute('SELECT * FROM categories WHERE id = %s', (id,))
-        category = cursor.fetchone()
-        cursor.close()
-        
-        if not category:
-            return jsonify({'message': 'Category not found', 'success': False}), 404
-            
-        return jsonify({'message': 'Category retrieved successfully', 'data': category, 'success': True}), 200
-    except Exception as e:
-        return jsonify({'message': 'Failed to fetch category', 'error': str(e), 'success': False}), 500
-  
 
-# User Management Routes
+
 # User Management Routes
 @app.route('/users', methods=['GET'])
 def get_users():
@@ -2355,4 +2053,4 @@ def handle_delivery_options_request(delivery_id=None, order_number=None, trackin
 #     app.run(debug=True)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(debug=True, host='0.0.0.0', port=5000)

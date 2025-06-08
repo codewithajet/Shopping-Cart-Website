@@ -151,11 +151,11 @@ const Footer = () => {
                 <span className="text-xs text-gray-600 mr-2">Payment Methods:</span>
                 <div className="flex space-x-2">
                     {[
-                      { name: 'Visa', icon: <CreditCard size={16} className="mr-1" /> },
-                      { name: 'Mastercard', icon: <CreditCard size={16} className="mr-1" /> },
-                      { name: 'Amex', icon: <CreditCard size={16} className="mr-1" /> },
-                      { name: 'PayPal', icon: <CreditCard size={16} className="mr-1" /> },
-                      { name: 'Apple Pay', icon: <CreditCard size={16} className="mr-1" /> }
+                        { name: 'Visa'},
+                        { name: 'Mastercard'},
+                        { name: 'Amex'},
+                        { name: 'PayPal' },
+                        { name: 'Apple Pay' }
                     ].map((method) => (
                     <div key={method.name} className="bg-white px-2 py-1 rounded border border-gray-200 flex items-center">
                         {method.icon}

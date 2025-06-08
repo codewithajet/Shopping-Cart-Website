@@ -54,14 +54,22 @@ function UserCartComponent({
                                     <div className="item-info">
                                         <div className="item-image">
                                             {/* Display product images */}
-                                            {item.product.images && item.product.images.map((image, index) => (
-                                                <img
-                                                    key={index}
-                                                    src={`http://localhost:5000/${image}`}
-                                                    alt={`${item.product.name} ${index + 1}`}
-                                                    className="product-image"
-                                                />
-                                            ))}
+                                                {item.product.images && item.product.images.map((image, index) => (
+                                                    <img
+                                                        key={index}
+                                                        src={
+                                                            image.startsWith('http')
+                                                                ? image
+                                                                : `http://localhost:5000${image.startsWith('/') ? '' : '/'}${image}`
+                                                        }
+                                                        alt={`${item.product.name} ${index + 1}`}
+                                                        className="product-image"
+                                                        onError={(e) => {
+                                                            e.target.onerror = null;
+                                                            e.target.src = "/src/assets/avatar.png";
+                                                        }}
+                                                    />
+                                                ))}
                                         </div>
                                         <div className="item-details">
                                             <h3>{item.product.name}</h3>

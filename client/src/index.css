@@ -1075,7 +1075,7 @@
     color: var(--text-light);
     font-style: italic;
   }
-  
+
   /* ==========================================================================
        7. Cart Component
        ========================================================================== */
@@ -1685,6 +1685,29 @@ body.popup-open {
   font-weight: var(--font-weight-bold);
   color: var(--primary-color);
 }
+
+.popup-product-specifications {
+  margin-bottom: var(--spacing-lg);
+}
+
+.popup-product-specifications h4 {
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-md);
+  color: var(--primary-color);
+}
+
+.popup-product-specifications ul {
+  margin: 0;
+  padding: 0 0 0 16px;
+  list-style: disc;
+}
+
+.popup-product-specifications li {
+  font-size: var(--font-size-sm);
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+
 
 .product-tags {
   display: flex;
