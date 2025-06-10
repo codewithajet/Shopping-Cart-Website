@@ -132,6 +132,7 @@ def login():
         return jsonify({'message': 'Invalid credentials'}), 401
     except Exception as e:
         return jsonify({'message': 'An error occurred. Please try again.', 'error': str(e)}), 500
+
 def parse_bool(val):
     if isinstance(val, bool):
         return val
@@ -222,7 +223,6 @@ def add_product():
         in_stock = parse_bool(in_stock_str) if in_stock_str is not None else True
         full_description = request.form.get('full_description')
         specifications = request.form.get('specifications')
-        # Image handling: Use the first image file as main image
         images = request.files.getlist('images')
         image_url = None
         image_urls = []
@@ -241,7 +241,6 @@ def add_product():
         if not all([name, price is not None, category_id, description]):
             return jsonify({'message': 'name, price, category_id, and description are required'}), 400
 
-        # Try parsing specifications JSON
         if specifications:
             try:
                 json.loads(specifications)
@@ -258,7 +257,6 @@ def add_product():
         )
         product_id = cursor.lastrowid
 
-        # Save extra images to product_images table
         if image_urls:
             for idx, url in enumerate(image_urls):
                 cursor.execute(
@@ -296,7 +294,6 @@ def update_product(id):
                 update_fields.append(f"{field} = %s")
                 update_values.append(value)
 
-        # Handle new images
         if 'images' in request.files:
             images = request.files.getlist('images')
             if data.get('replace_images') == 'true':
@@ -323,7 +320,6 @@ def update_product(id):
                         (id, image_url, idx == 0 and data.get('replace_images') == 'true')
                     )
             if images and len(images) > 0:
-                # Update main image if needed
                 main_image_url = f"/static/uploads/{filename}"
                 update_fields.append("image = %s")
                 update_values.append(main_image_url)
@@ -371,6 +367,80 @@ def delete_product(id):
         return jsonify({'message': 'Product deleted successfully'}), 200
     except Exception as e:
         return jsonify({'message': 'Failed to delete product', 'error': str(e)}), 500
+
+@app.route('/products/check-stock', methods=['POST'])
+def check_product_stock():
+    try:
+        if not request.is_json:
+            return jsonify({'message': 'Request must be JSON'}), 400
+
+        data = request.get_json()
+        # Validate that 'items' is present and is a list
+        if not data or 'items' not in data or not isinstance(data['items'], list):
+            return jsonify({'message': 'No items provided'}), 400
+
+        items = data['items']
+        id_list = []
+        quantities = {}
+
+        for item in items:
+            pid = item.get('productId')
+            qty = item.get('quantity', 1)
+            try:
+                pid_int = int(pid)
+                qty_int = int(qty)
+                if pid_int > 0 and qty_int > 0:
+                    id_list.append(pid_int)
+                    quantities[pid_int] = qty_int
+            except (ValueError, TypeError):
+                continue  # skip invalid item
+
+        if not id_list:
+            return jsonify({'message': 'No valid product IDs provided'}), 400
+
+        cursor = mysql.connection.cursor()
+        format_strings = ','.join(['%s'] * len(id_list))
+        query = f'SELECT id, name, stock_count, in_stock FROM products WHERE id IN ({format_strings})'
+        cursor.execute(query, tuple(id_list))
+        products_raw = cursor.fetchall()
+        cursor.close()
+
+        # Check stock for each requested item
+        products = []
+        out_of_stock = []
+        found_ids = set()
+        for product in products_raw:
+            pid = product['id']
+            found_ids.add(pid)
+            requested_qty = quantities.get(pid, 1)
+            item = {
+                'id': pid,
+                'name': product['name'],
+                'in_stock': product['in_stock'],
+                'stock_count': product['stock_count']
+            }
+            products.append(item)
+            # Check quantity
+            if not product['in_stock'] or product['stock_count'] < requested_qty:
+                out_of_stock.append({
+                    "id": pid,
+                    "name": product['name'],
+                    "requested": requested_qty,
+                    "available": product['stock_count']
+                })
+
+        missing_ids = [pid for pid in id_list if pid not in found_ids]
+
+        result = {
+            'products': products,
+            'missing_ids': missing_ids,
+            'out_of_stock': out_of_stock
+        }
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({'message': 'Failed to check product stock', 'error': str(e)}), 500
 
 # Category Management Routes
 # Helper: Get product count for a category
@@ -1172,7 +1242,6 @@ def create_order():
             if not coupon['is_active']:
                 return jsonify({'message': 'Coupon is not active'}), 400
                 
-            # Correct datetime usage
             import datetime
             current_time = datetime.datetime.now()
             if current_time < coupon['start_date'] or current_time > coupon['end_date']:
@@ -1226,7 +1295,6 @@ def create_order():
             if 'product_name' in item:
                 product_name = item['product_name']
             else:
-                # Try to fetch product name from database
                 cursor.execute('SELECT name FROM products WHERE id = %s', (item['product_id'],))
                 product_result = cursor.fetchone()
                 if product_result:
@@ -1241,9 +1309,9 @@ def create_order():
                 item['unit_price'], total_price, attributes_json
             ))
             
-            # Update product stock quantity
+            # Update product stock count (FIXED: use stock_count not stock_quantity)
             cursor.execute('''
-                UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - %s)
+                UPDATE products SET stock_count = GREATEST(0, stock_count - %s)
                 WHERE id = %s
             ''', (item['quantity'], item['product_id']))
             
@@ -1276,14 +1344,12 @@ def create_order():
     except Exception as e:
         # Log the error
         app.logger.error(f"Error creating order: {str(e)}")
-        
         # Rollback transaction if there's an error
         if conn:
             try:
                 conn.rollback()
             except Exception as rollback_error:
                 app.logger.error(f"Error during rollback: {str(rollback_error)}")
-            
         return jsonify({'message': 'Failed to create order', 'error': str(e)}), 500
     
 @app.route('/orders/<string:order_number>/status', methods=['PATCH'])
@@ -2053,4 +2119,4 @@ def handle_delivery_options_request(delivery_id=None, order_number=None, trackin
 #     app.run(debug=True)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

@@ -258,7 +258,7 @@ const OrderManagement = ({
                 
                 // Call the endpoint with order_number as a query parameter
                 const response = await axios.patch(
-                    `https://shopping-cart-5wj4.onrender.com/products/${itemId}/delivery-status?order_number=${orderNumber}`, 
+                    `http://127.0.0.1:5000/products/${itemId}/delivery-status?order_number=${orderNumber}`, 
                     {
                         status: newStatus
                     }
