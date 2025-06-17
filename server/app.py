@@ -142,6 +142,7 @@ def parse_bool(val):
 def get_products():
     try:
         cursor = mysql.connection.cursor()
+        # Filtering parameters
         category_id = request.args.get('category_id', type=int)
         min_price = request.args.get('min_price', type=float)
         max_price = request.args.get('max_price', type=float)
@@ -173,12 +174,16 @@ def get_products():
         cursor.execute(query, tuple(params))
         products = cursor.fetchall()
 
-        # Fetch product images
+        # Fetch product images & category names
         for product in products:
+            # Add category_name
+            product['category_name'] = get_category_name(product['category_id'])
+            # Optionally add category_id for frontend mapping/filtering
+            product['category_id'] = product.get('category_id')
+            # Images
             cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (product['id'],))
             images = cursor.fetchall()
             product['images'] = [img['image_url'] for img in images] if images else ([product['image']] if product['image'] else [])
-            # Parse specifications if stored as JSON
             if product.get('specifications'):
                 try:
                     product['specifications'] = json.loads(product['specifications'])
@@ -197,6 +202,8 @@ def get_product(id):
         product = cursor.fetchone()
         if not product:
             return jsonify({'message': 'Product not found'}), 404
+        product['category_name'] = get_category_name(product['category_id'])
+        product['category_id'] = product.get('category_id')
         cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (id,))
         images = cursor.fetchall()
         product['images'] = [img['image_url'] for img in images] if images else ([product['image']] if product['image'] else [])
@@ -466,6 +473,13 @@ def get_product_count(category_id):
     cursor.close()
     return result['count'] if result and 'count' in result else 0
 
+def get_category_name(category_id):
+    cursor = mysql.connection.cursor()
+    cursor.execute('SELECT name FROM categories WHERE id = %s', (category_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    return result['name'] if result and 'name' in result else None
+
 @app.route('/categories', methods=['GET'])
 def get_categories():
     cursor = mysql.connection.cursor()
@@ -528,7 +542,6 @@ def delete_category(id):
     mysql.connection.commit()
     cursor.close()
     return jsonify({'message': 'Category deleted', 'success': True}), 200
-
 
 
 # User Management Routes
