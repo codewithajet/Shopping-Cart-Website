@@ -13,6 +13,8 @@ from decimal import Decimal
 import json
 import re
 import secrets
+import cloudinary
+import cloudinary.uploader
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -42,6 +44,11 @@ def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET')
+)
 # Additional route to serve uploaded files directly
 @app.route('/static/uploads/<filename>')
 def uploaded_file(filename):
@@ -227,33 +234,36 @@ def add_product():
         rating = request.form.get('rating', type=float)
         stock_count = request.form.get('stock_count', type=int, default=0)
         in_stock_str = request.form.get('in_stock')
-        in_stock = parse_bool(in_stock_str) if in_stock_str is not None else True
+        in_stock = str(in_stock_str).lower() in ['true', '1', 'yes'] if in_stock_str is not None else True
         full_description = request.form.get('full_description')
         specifications = request.form.get('specifications')
         images = request.files.getlist('images')
+
         image_url = None
         image_urls = []
+
+        # Upload images to Cloudinary
         if images:
-            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
             for idx, image_file in enumerate(images):
                 if image_file and allowed_file(image_file.filename):
-                    ext = image_file.filename.rsplit('.', 1)[1].lower()
-                    filename = f"{uuid.uuid4().hex}.{ext}"
-                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    image_file.save(filepath)
-                    url = f"/static/uploads/{filename}"
+                    upload_result = cloudinary.uploader.upload(image_file, folder="products/")
+                    url = upload_result['secure_url']
                     if idx == 0:
                         image_url = url
                     image_urls.append(url)
+
+        # Validate required fields
         if not all([name, price is not None, category_id, description]):
             return jsonify({'message': 'name, price, category_id, and description are required'}), 400
 
+        # Validate JSON in specifications
         if specifications:
             try:
                 json.loads(specifications)
             except Exception:
                 return jsonify({'message': 'specifications must be valid JSON'}), 400
 
+        # Insert product into DB
         cursor = mysql.connection.cursor()
         cursor.execute(
             '''
@@ -264,15 +274,18 @@ def add_product():
         )
         product_id = cursor.lastrowid
 
-        if image_urls:
-            for idx, url in enumerate(image_urls):
-                cursor.execute(
-                    'INSERT INTO product_images (product_id, image_url, is_primary) VALUES (%s, %s, %s)',
-                    (product_id, url, idx == 0)
-                )
+        # Save all image URLs in product_images table
+        for idx, url in enumerate(image_urls):
+            cursor.execute(
+                'INSERT INTO product_images (product_id, image_url, is_primary) VALUES (%s, %s, %s)',
+                (product_id, url, idx == 0)
+            )
+
         mysql.connection.commit()
         cursor.close()
+
         return jsonify({'id': product_id, 'images': image_urls}), 201
+
     except Exception as e:
         return jsonify({'message': 'Failed to add product', 'error': str(e)}), 500
 
@@ -288,90 +301,103 @@ def update_product(id):
         update_fields = []
         update_values = []
 
-        for field in ['name', 'price', 'image', 'category_id', 'description', 'rating', 'stock_count', 'in_stock', 'full_description', 'specifications']:
+        # Process simple fields
+        for field in ['name', 'price', 'category_id', 'description', 'rating', 'stock_count', 'in_stock', 'full_description', 'specifications']:
             if field in data:
-                if field == 'specifications':
-                    try:
-                        json.loads(data[field])
-                    except Exception:
-                        return jsonify({'message': 'specifications must be valid JSON'}), 400
                 value = data[field]
                 if field == 'in_stock':
-                    value = parse_bool(value)
+                    value = str(value).lower() in ['true', '1', 'yes']
+                if field == 'specifications':
+                    try:
+                        json.loads(value)
+                    except Exception:
+                        return jsonify({'message': 'specifications must be valid JSON'}), 400
                 update_fields.append(f"{field} = %s")
                 update_values.append(value)
 
-        if 'images' in request.files:
-            images = request.files.getlist('images')
-            if data.get('replace_images') == 'true':
-                cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (id,))
-                old_images = cursor.fetchall()
+        # Handle new image uploads
+        images = request.files.getlist('images')
+        replace_images = data.get('replace_images', 'false').lower() in ['true', '1', 'yes']
+        image_urls = []
+
+        if images:
+            if replace_images:
+                # Delete old product_images
                 cursor.execute('DELETE FROM product_images WHERE product_id = %s', (id,))
-                for img in old_images:
-                    try:
-                        file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(img['image_url']))
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
-                    except Exception:
-                        pass
+
             for idx, image_file in enumerate(images):
                 if image_file and allowed_file(image_file.filename):
-                    ext = image_file.filename.rsplit('.', 1)[1].lower()
-                    filename = f"{uuid.uuid4().hex}.{ext}"
-                    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    image_file.save(filepath)
-                    image_url = f"/static/uploads/{filename}"
+                    upload_result = cloudinary.uploader.upload(image_file, folder="products/")
+                    url = upload_result['secure_url']
+                    image_urls.append(url)
+
+                    # Insert new image into product_images table
                     cursor.execute(
                         'INSERT INTO product_images (product_id, image_url, is_primary) VALUES (%s, %s, %s)',
-                        (id, image_url, idx == 0 and data.get('replace_images') == 'true')
+                        (id, url, idx == 0)
                     )
-            if images and len(images) > 0:
-                main_image_url = f"/static/uploads/{filename}"
+
+            if replace_images and image_urls:
+                # Also update the main image in products table
                 update_fields.append("image = %s")
-                update_values.append(main_image_url)
+                update_values.append(image_urls[0])
 
-        if not update_fields:
-            return jsonify({'message': 'No fields to update provided'}), 400
+        # Run update if there are changes
+        if update_fields:
+            query = f"UPDATE products SET {', '.join(update_fields)} WHERE id = %s"
+            update_values.append(id)
+            cursor.execute(query, update_values)
 
-        query = f"UPDATE products SET {', '.join(update_fields)} WHERE id = %s"
-        update_values.append(id)
-        cursor.execute(query, update_values)
         mysql.connection.commit()
         cursor.close()
         return jsonify({'message': 'Product updated successfully'}), 200
+
     except Exception as e:
         return jsonify({'message': 'Failed to update product', 'error': str(e)}), 500
 
+def extract_cloudinary_public_id(image_url):
+    try:
+        parts = image_url.split('/')
+        public_id_with_ext = '/'.join(parts[parts.index('upload') + 1:])
+        public_id = '.'.join(public_id_with_ext.split('.')[:-1])
+        return public_id
+    except Exception:
+        return None
 @app.route('/products/<int:id>', methods=['DELETE'])
 def delete_product(id):
     try:
         cursor = mysql.connection.cursor()
+
+        # Get product's main image
         cursor.execute('SELECT image FROM products WHERE id = %s', (id,))
         product = cursor.fetchone()
         if not product:
             return jsonify({'message': 'Product not found'}), 404
+
+        # Get all additional image URLs
         cursor.execute('SELECT image_url FROM product_images WHERE product_id = %s', (id,))
         images = cursor.fetchall()
+
+        # Delete product and images from DB
         cursor.execute('DELETE FROM products WHERE id = %s', (id,))
         cursor.execute('DELETE FROM product_images WHERE product_id = %s', (id,))
         mysql.connection.commit()
-        for img in images:
-            try:
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(img['image_url']))
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            except Exception:
-                pass
-        if product.get('image'):
-            try:
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(product['image']))
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            except Exception:
-                pass
         cursor.close()
+
+        # Delete all images from Cloudinary
+        image_urls = [product['image']] if product['image'] else []
+        image_urls += [img['image_url'] for img in images]
+
+        for url in image_urls:
+            public_id = extract_cloudinary_public_id(url)
+            if public_id:
+                try:
+                    cloudinary.uploader.destroy(public_id)
+                except Exception as err:
+                    app.logger.warning(f"Could not delete Cloudinary image {public_id}: {err}")
+
         return jsonify({'message': 'Product deleted successfully'}), 200
+
     except Exception as e:
         return jsonify({'message': 'Failed to delete product', 'error': str(e)}), 500
 
