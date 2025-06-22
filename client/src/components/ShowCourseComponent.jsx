@@ -108,7 +108,7 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
     const getImageUrl = (image) =>
   image.startsWith('http')
     ? image
-    : `http://localhost:5000${image.startsWith('/') ? '' : '/'}${image}`;
+    : `https://shopping-cart-5wj4.onrender.com${image.startsWith('/') ? '' : '/'}${image}`;
     return (
         <div className="product-list">
             {filterCourseFunction.length === 0 ? (
@@ -129,7 +129,7 @@ function ShowCourseComponent({ filterCourseFunction, addCourseToCartFunction }) 
                             src={
                                 product.images[0].startsWith('http')
                                     ? product.images[0]
-                                    : `http://localhost:5000${product.images[0].startsWith('/') ? '' : '/'}${product.images[0]}`
+                                    : `https://shopping-cart-5wj4.onrender.com${product.images[0].startsWith('/') ? '' : '/'}${product.images[0]}`
                             }
                             alt={product.name}
                             className="product-image"

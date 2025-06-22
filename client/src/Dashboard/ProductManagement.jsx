@@ -4,7 +4,7 @@ import {
   Save, Upload, AlertCircle, User, XCircle
 } from "lucide-react";
 
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = "https://shopping-cart-5wj4.onrender.com";
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);

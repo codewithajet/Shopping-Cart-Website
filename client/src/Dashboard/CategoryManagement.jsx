@@ -3,8 +3,8 @@ import {
   PlusCircle, Trash2, Edit, Search, RefreshCw, Save, X, Image as ImageIcon, AlertCircle
 } from 'lucide-react';
 
-const API = "http://127.0.0.1:5000/categories";
-const UPLOAD_API = "http://127.0.0.1:5000/upload";
+const API = "https://shopping-cart-5wj4.onrender.com/categories";
+const UPLOAD_API = "https://shopping-cart-5wj4.onrender.com/upload";
 
 const ICON_OPTIONS = [
   "📱", "👗", "🏠", "⚽", "📚", "💄", "🛒", "💻", "🎧", "🧸", "🍔", "⚡", "🚗", "🎮", "🧥"

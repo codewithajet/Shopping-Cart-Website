@@ -60,7 +60,7 @@ function UserCartComponent({
                                                         src={
                                                             image.startsWith('http')
                                                                 ? image
-                                                                : `http://localhost:5000${image.startsWith('/') ? '' : '/'}${image}`
+                                                                : `https://shopping-cart-5wj4.onrender.com${image.startsWith('/') ? '' : '/'}${image}`
                                                         }
                                                         alt={`${item.product.name} ${index + 1}`}
                                                         className="product-image"

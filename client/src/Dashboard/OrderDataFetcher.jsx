@@ -10,7 +10,7 @@ const [searchTerm, setSearchTerm] = useState('');
 const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
 // Define the base API URL - replace with your actual backend URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://shopping-cart-5wj4.onrender.com';
 
 const fetchOrders = useCallback(async () => {
     setLoading(true);
